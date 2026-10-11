@@ -1,0 +1,50 @@
+name: prepare-release-draft
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Successful build-and-test run to release
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: release-draft
+  cancel-in-progress: false
+jobs:
+  draft:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BUILD_RUN: ${{ inputs.build_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate provenance and download tested CI artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:BUILD_RUN -notmatch '^\d+$'){throw 'Invalid build run ID'}
+          $run=gh api "repos/$env:GH_REPO/actions/runs/$env:BUILD_RUN" | ConvertFrom-Json
+          if($LASTEXITCODE -ne 0 -or $run.name -ne 'build-and-test' -or $run.conclusion -ne 'success' -or $run.event -ne 'push' -or $run.head_branch -ne 'main' -or $run.head_repository.full_name -ne $env:GH_REPO){throw 'Expected a successful main-branch build in this repository'}
+          gh run download $env:BUILD_RUN --name Swap-win-x64 --dir release-input
+          if($LASTEXITCODE -ne 0){throw 'Artifact download failed'}
+          $exe=Get-Item release-input/dist/Swap.exe
+          $report=Get-Content release-input/artifacts/test-results.json -Raw | ConvertFrom-Json
+          if($report.failed -ne 0 -or $report.passed -ne 115){throw 'Unexpected test report'}
+          $hash=(Get-FileHash $exe.FullName -Algorithm SHA256).Hash
+          $expected=(Get-Content release-input/dist/Swap.exe.sha256 -Raw).Trim().Split(' ')[0]
+          if($hash -ne $expected){throw 'Artifact checksum mismatch'}
+          $version=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe.FullName).ProductVersion.Split('+')[0]
+          if($version -ne '0.4.0'){throw 'Unexpected version'}
+          @{author='KraicDev';version=$version;appSha256=$hash;bytes=$exe.Length;sourceCommit=$run.head_sha;buildRun=$run.html_url;ciCorePassed=$report.passed;unsigned=$true;vmValidation='pending; draft must not be published until the exact EXE passes isolated Windows checks'} | ConvertTo-Json | Set-Content release-input/build-provenance.json -Encoding utf8
+          $run.head_sha | Set-Content release-input/source-commit.txt -Encoding ascii
+      - name: Create unpublished preview draft
+        shell: pwsh
+        run: |
+          $source=(Get-Content release-input/source-commit.txt -Raw).Trim()
+          gh release create v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
+          if($LASTEXITCODE -ne 0){throw 'Draft creation failed; existing releases are never overwritten'}
