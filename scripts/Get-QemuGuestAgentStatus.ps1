@@ -20,8 +20,8 @@ try {
     $stream.WriteByte(255)
     $null=Request 'guest-sync-delimited' @{ id=[long](Get-Date).Ticks }
     $status=Request 'guest-exec-status' @{ pid=$command.pid }
-    $status | Select-Object exited,exitcode,signal | ConvertTo-Json
-    if ($status.'out-data') { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($status.'out-data')) }
-    if ($status.'err-data') { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($status.'err-data')) }
+    Write-Host ($status | Select-Object exited,exitcode,signal | ConvertTo-Json)
+    if ($status.'out-data') { Write-Host ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($status.'out-data'))) }
+    if ($status.'err-data') { Write-Host ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($status.'err-data'))) }
     if ($status.exited -and ($status.exitcode -ne 0 -or $null -ne $status.signal)) { throw ('Guest bootstrap failed: exit='+$status.exitcode+' signal='+$status.signal) }
 } finally { $client.Dispose() }

@@ -1,0 +1,14 @@
+{
+  "author": "KraicDev",
+  "version": "0.4.0-preview",
+  "releaseStatus": "draft",
+  "sourceCommit": "b620c400e4d4a2293c880b8fbb4e1cf136cbe61a",
+  "appSha256": "5AB888161BCB9A006121D6CE7A6C63025F80DE3D1B824BD0D966CAB31B8726C6",
+  "bytes": 65640253,
+  "ci": { "passed": 115, "failed": 0, "run": "https://github.com/zKraic/Swap/actions/runs/38163608090" },
+  "isolatedWindows": { "status": "pending", "completed": false },
+  "authenticode": "NotSigned",
+  "physicalGpuInstallationRemoval": "not-tested",
+  "games": "not-tested",
+  "scope": "Experimental preview; driver transitions use simulated hardware. Exact CI binary VM validation is required before publication."
+}

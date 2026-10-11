@@ -1,5 +1,5 @@
 # KraicDev. Start tests through the private guest agent, in the logged-on guest desktop.
-param()
+param([switch]$Diagnostic)
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 $config=Get-Content (Join-Path $root 'artifacts/vm/qemu-run.json') -Raw | ConvertFrom-Json
@@ -22,6 +22,7 @@ try {
     $null=Request 'guest-ping'
     $guestCommand=@'
 $ErrorActionPreference='Stop'
+try {
 if ($env:COMPUTERNAME -ne 'SWAPTESTVM' -or (Get-CimInstance Win32_ComputerSystem).Manufacturer -ne 'QEMU') { throw 'Not the isolated test guest' }
 $account=(Get-CimInstance Win32_ComputerSystem).UserName
 if (!$account) { throw 'Guest interactive desktop is not logged on yet' }
@@ -47,7 +48,21 @@ $settings=New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 
 Register-ScheduledTask -TaskName 'KraicDev-Swap-GuestTests' -Action $action -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName 'KraicDev-Swap-GuestTests'
 Write-Output 'KraicDev: tests started in the isolated guest desktop.'
+} catch {
+    if($env:COMPUTERNAME -eq 'SWAPTESTVM'){
+        [void][IO.Directory]::CreateDirectory('C:\SwapResults')
+        @{author='KraicDev';phase='bootstrap-failed';time=(Get-Date).ToUniversalTime().ToString('o');error=$_.Exception.ToString();position=$_.InvocationInfo.PositionMessage} | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath 'C:\SwapResults\diagnostics.json' -Encoding UTF8
+    }
+    throw
+}
 '@
+    if($Diagnostic){$guestCommand=@'
+$ErrorActionPreference='Stop'
+if($env:COMPUTERNAME -ne 'SWAPTESTVM' -or (Get-CimInstance Win32_ComputerSystem).Manufacturer -ne 'QEMU'){throw 'Not the isolated test guest'}
+[void][IO.Directory]::CreateDirectory('C:\SwapResults')
+$logon=Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+@{author='KraicDev';time=(Get-Date).ToUniversalTime().ToString('o');user=(Get-CimInstance Win32_ComputerSystem).UserName;logon=@{user=$logon.DefaultUserName;enabled=$logon.AutoAdminLogon;remaining=$logon.AutoLogonCount};processes=@(Get-Process | Where-Object ProcessName -Match '^(Swap|LogonUI|explorer)' | Select-Object ProcessName,Id,SessionId);testTask=(Get-ScheduledTask -TaskName 'KraicDev-Swap-GuestTests' -ErrorAction SilentlyContinue).State.ToString()} | ConvertTo-Json -Depth 6 | Set-Content 'C:\SwapResults\diagnostics.json' -Encoding UTF8
+'@}
     $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($guestCommand))
     $result=Request 'guest-exec' @{ path='C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'; arg=@('-NoLogo','-NoProfile','-EncodedCommand',$encoded); 'capture-output'=$true }
     @{ author='KraicDev'; pid=$result.pid; started=(Get-Date).ToUniversalTime().ToString('o'); session='Interactive guest administrator'; hostRestart=$false } | ConvertTo-Json | Set-Content (Join-Path $root 'artifacts/vm/guest-agent-command.json') -Encoding UTF8
