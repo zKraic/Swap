@@ -27,4 +27,3 @@ if($beforeJson-ne$afterJson){throw 'Host active display inventory changed; revie
 @{author='KraicDev';directory=$output;corePassed=$core.passed;uiPassed=$ui.passed;checksPassed=@($summary.checks).Count;captures=$captures;windowFits=$fit.passed;appSha256=$hash;completed=$true;guestOs=$environment.os;guestVersion=$environment.version;hostDisplayUnchanged=$true;hostRestart=$false;exportMethod='Offline read after normal guest shutdown'}|ConvertTo-Json|Set-Content (Join-Path $root 'artifacts/vm/qemu-final.json') -Encoding UTF8
 $after|ConvertTo-Json -Depth 5|Set-Content (Join-Path $root 'artifacts/vm/qemu-host-display-after.json') -Encoding UTF8
 Write-Output ('KraicDev: current EXE verified in isolated Windows: '+$output)
-

@@ -42,7 +42,11 @@ jobs:
           if($version -ne '0.4.0'){throw 'Unexpected version'}
           $vmValidation='pending; draft must not be published until the exact EXE passes isolated Windows checks'
           $validation=Get-Content docs/validation/v04-result.json -Raw | ConvertFrom-Json
-          if($validation.appSha256 -eq $hash -and $validation.isolatedWindows.completed -eq $true){$vmValidation=$validation.isolatedWindows}
+          if($validation.appSha256 -eq $hash -and $validation.isolatedWindows.completed -eq $true){
+            if($validation.sourceCommit -ne $run.head_sha -or $validation.isolatedWindows.corePassed -ne 118 -or $validation.isolatedWindows.uiPassed -ne 127 -or $validation.isolatedWindows.checksPassed -ne 12 -or $validation.isolatedWindows.captures -ne 33){throw 'Exact validation provenance mismatch'}
+            $vmValidation=$validation.isolatedWindows
+          }
+          Copy-Item docs/validation/v04-result.json release-input/validation.json
           @{author='KraicDev';version=$version;appSha256=$hash;bytes=$exe.Length;sourceCommit=$run.head_sha;buildRun=$run.html_url;ciCorePassed=$report.passed;unsigned=$true;vmValidation=$vmValidation;validationRecord='https://github.com/zKraic/Swap/blob/main/docs/validation/v04-result.json'} | ConvertTo-Json -Depth 8 | Set-Content release-input/build-provenance.json -Encoding utf8
           $run.head_sha | Set-Content release-input/source-commit.txt -Encoding ascii
       - name: Create or update unpublished preview draft
@@ -55,10 +59,10 @@ jobs:
           if($existing.Count -gt 1){throw 'Ambiguous release'}
           if($existing.Count -eq 1){
             if(!$existing[0].draft){throw 'Published releases must never be overwritten'}
-            gh release upload v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json --clobber
+            gh release upload v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json release-input/validation.json --clobber
             if($LASTEXITCODE -ne 0){throw 'Draft asset update failed'}
             gh release edit v0.4.0-preview --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
           }else{
-            gh release create v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
+            gh release create v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json release-input/validation.json --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
           }
           if($LASTEXITCODE -ne 0){throw 'Draft preparation failed'}

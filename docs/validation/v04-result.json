@@ -1,23 +1,39 @@
 {
-  "author": "KraicDev",
-  "version": "0.4.0-preview",
-  "releaseStatus": "draft; corrected build and exact VM validation pending",
-  "sourceCommit": null,
-  "appSha256": null,
-  "bytes": null,
-  "ci": {
-    "expectedPassed": 115,
-    "status": "pending"
-  },
+  "appSha256": "E91A52F941A8DAD654B44E54142D763FD4D2E1E5F2EFC2FF1358FD8C8BE13DAC",
   "isolatedWindows": {
-    "completed": false,
-    "expectedCorePassed": 118,
-    "expectedCaptures": 33,
-    "expectedUiPassed": 127,
-    "status": "pending"
+    "initialWindowFits": true,
+    "uiPassed": 127,
+    "network": false,
+    "uiFailed": 0,
+    "os": "Microsoft Windows 10 Enterprise LTSC Evaluation",
+    "osVersion": "10.0.19044",
+    "completed": true,
+    "corePassed": 118,
+    "preinstalledDotnet": false,
+    "hostDisplayUnchanged": true,
+    "physicalGpuPassthrough": false,
+    "checksPassed": 12,
+    "status": "passed",
+    "captures": 33,
+    "hostRestart": false,
+    "coreFailed": 0,
+    "exportMethod": "Offline read after normal guest shutdown"
   },
-  "authenticode": "NotSigned",
-  "physicalGpuInstallationRemoval": "not-tested",
+  "sourceCommit": "f23babc69e2528e2595e1560a6c8855e25c41019",
   "games": "not-tested",
-  "scope": "Experimental preview; driver transitions use simulated hardware. Exact CI binary VM validation is required before publication."
+  "releaseStatus": "Experimental preview; isolated validation complete",
+  "scope": "Actual self-contained WPF execution and native read-only Windows inventory. Driver transitions and backup workflows use simulated adapters; no physical GPU or game certification.",
+  "interactivePostRestartContinuation": "not-tested",
+  "bytes": 65641080,
+  "physicalGpuInstallationRemoval": "not-tested",
+  "authenticode": "NotSigned",
+  "author": "KraicDev",
+  "windows11Hardware": "not-tested",
+  "version": "0.4.0-preview",
+  "ci": {
+    "failed": 0,
+    "run": "https://github.com/zKraic/Swap/actions/runs/38165794734",
+    "passed": 115
+  },
+  "realWindowsUpdateDownload": "not-tested"
 }

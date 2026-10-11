@@ -1,6 +1,6 @@
 Swap adds an independent graphics-driver backup with file integrity checks, while preserving the install, verify, then clean workflow for NVIDIA, AMD and Intel Arc.
 
-**Experimental preview for Windows 10/11 x64.** Installation and removal use a simulated test backend; physical GPU replacement and games are not certified. Start with diagnostics or demo mode. Remote sessions and pending servicing restarts block driver changes.
+**Experimental preview for Windows 10/11 x64.** Installation and removal tests use a simulated backend; physical GPU replacement and games are not certified. Start with diagnostics or demo mode. Remote sessions and pending servicing restarts block driver changes.
 
 Download **Swap.exe** directly. No Swap installer, ZIP or separate .NET installation is required. Windows administrator permission is required; Windows may require a restart after changing a driver.
 
