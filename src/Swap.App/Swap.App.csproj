@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup>
+  <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
+  <ApplicationIcon>../../assets/swap.ico</ApplicationIcon>
+  <AssemblyName>Swap</AssemblyName><ApplicationManifest>app.manifest</ApplicationManifest>
+  <PublishSingleFile>true</PublishSingleFile><IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  <SelfContained>true</SelfContained><RuntimeIdentifier>win-x64</RuntimeIdentifier><PublishTrimmed>false</PublishTrimmed>
+ </PropertyGroup>
+ <ItemGroup><ProjectReference Include="../Swap.Windows/Swap.Windows.csproj"/><Resource Include="../../assets/swap.ico" Link="Assets/swap.ico"/><Resource Include="../../assets/swap-logo.png" Link="Assets/swap-logo.png"/>
+ <EmbeddedResource Include="../../README.md" LogicalName="Help/README.md"/><EmbeddedResource Include="../../LICENSE" LogicalName="Help/LICENSE"/>
+ <EmbeddedResource Include="../../README.es.md" LogicalName="Help/README.es.md"/><EmbeddedResource Include="../../TRADEMARKS.md" LogicalName="Help/TRADEMARKS.md"/><EmbeddedResource Include="../../THIRD_PARTY_NOTICES.md" LogicalName="Help/THIRD_PARTY_NOTICES.md"/>
+ <EmbeddedResource Include="../../THIRD-PARTY-RUNTIME.txt" LogicalName="Help/THIRD-PARTY-RUNTIME.txt"/>
+ <EmbeddedResource Include="../../docs/*.md" LogicalName="Help/docs/%(Filename)%(Extension)"/>
+ </ItemGroup>
+</Project>

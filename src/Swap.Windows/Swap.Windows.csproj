@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework></PropertyGroup>
+ <ItemGroup><ProjectReference Include="../Swap.Core/Swap.Core.csproj"/><EmbeddedResource Include="Scripts/*.ps1"/></ItemGroup>
+</Project>

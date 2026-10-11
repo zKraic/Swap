@@ -1,0 +1,87 @@
+using System.IO;
+using System.Text.Json;
+using System.Windows;
+using Swap.Core;
+using Swap.Windows;
+namespace Swap.App;
+
+// KraicDev. Keep checkpoints separate from backups and never use a diagnostic finding to delete a driver.
+public partial class MainWindow
+{
+    private GraphicsDiagnostics? graphicsDiagnostics;
+    private GraphicsCheckpoint? checkpoint;
+    private GraphicsCheckpoint? beforeOperation;
+    private string CheckpointPath => Path.Combine(dataRoot,"verified-state.json");
+    private static string Describe(HealthFinding finding) => T(finding.Code)+(string.IsNullOrEmpty(finding.Detail)?"":" · "+finding.Detail);
+    private async Task InspectGraphicsAsync()
+    {
+        if(snapshot is null)return;
+        graphicsDiagnostics=Demo && TargetAdapter is {} adapter ? GraphicsInspector.Demo(adapter) : await GraphicsInspector.ReadAsync();
+        checkpoint=null;
+        if(File.Exists(CheckpointPath))
+        {
+            try
+            {
+                if(new FileInfo(CheckpointPath).Length>1024*1024)throw new IOException("Checkpoint too large.");
+                checkpoint=JsonSerializer.Deserialize<GraphicsCheckpoint>(await File.ReadAllTextAsync(CheckpointPath));
+            }
+            catch(Exception e){Log(T("checkpointReadError")+" · "+e.GetType().Name);}
+        }
+        if(checkpoint is null && !File.Exists(CheckpointPath) && snapshot.Adapters.Count>0 && snapshot.Adapters.All(a=>a.Problem==0 && a.Signed && Planner.IsOem(a.Inf)))
+            await SaveCheckpointCoreAsync();
+        PaintGraphics();
+    }
+    private void PaintGraphics()
+    {
+        if(snapshot is null || graphicsDiagnostics is null)return;
+        var findings=GraphicsHealth.Evaluate(TargetAdapter,graphicsDiagnostics);
+        HealthText.Text=string.Join("\n",findings.Select(Describe));
+        GpuHealthSummary.Text=T(TargetAdapter?.Problem==0?"pnpOk":"pnpError")+(TargetAdapter?.Problem is >0 ? " "+TargetAdapter.Problem:"");
+        DisplayText.Text=graphicsDiagnostics.Displays.Count==0?T("displayUnknown"):string.Join("\n",graphicsDiagnostics.Displays.Select(d=>$"{d.Name} · {d.Width}×{d.Height} · {(d.Hz>1?d.Hz+" Hz":T("unknown"))}"+(d.MaximumHz>d.Hz+1 && d.Hz>1?$" · {T("maximumHz")} {d.MaximumHz} Hz":"")));
+        EventText.Text=!graphicsDiagnostics.EventsComplete?T("eventsUnknown"):graphicsDiagnostics.Incidents.Count==0?T("noDisplayErrors"):string.Join("\n",graphicsDiagnostics.Incidents.Take(8).Select(e=>$"{e.Time.LocalDateTime:g} · {e.Kind} · {e.Provider} ({e.Id})"));
+        if(checkpoint is null)ComparisonText.Text=T("checkpointNone");
+        else
+        {
+            try {ComparisonText.Text=string.Join("\n",GraphicsHealth.Compare(checkpoint,snapshot,graphicsDiagnostics,Demo).Select(Describe));}
+            catch(InvalidOperationException){ComparisonText.Text=T("checkpointOtherMachine");}
+        }
+    }
+    private async Task SaveCheckpointCoreAsync()
+    {
+        if(snapshot is null || graphicsDiagnostics is null)return;
+        var captured=GraphicsHealth.Capture(snapshot,graphicsDiagnostics,Demo);
+        try
+        {
+            EnsureWritable(dataRoot);var path=CheckpointPath;
+            await File.WriteAllTextAsync(path+".tmp",JsonSerializer.Serialize(captured));File.Move(path+".tmp",path,true);checkpoint=captured;
+        }
+        catch(Exception e){Log(T("checkpointReadError")+" · "+e.GetType().Name);}
+    }
+    private async void RefreshHealth(object sender,RoutedEventArgs e) => await Guard(AnalyzeAsync);
+    private async void SaveCheckpoint(object sender,RoutedEventArgs e)
+    {
+        if(busy)return;
+        if(MessageBox.Show(this,T("checkpointConfirm"),"Swap",MessageBoxButton.YesNo,MessageBoxImage.Question,MessageBoxResult.No)!=MessageBoxResult.Yes)return;
+        await Guard(async ()=>{await AnalyzeAsync();await SaveCheckpointCoreAsync();PaintGraphics();});
+    }
+    private void ViewHealth(object sender,RoutedEventArgs e){DiagnosticsNav.IsChecked=true;}
+    private void ViewRecovery(object sender,RoutedEventArgs e){RecoveryNav.IsChecked=true;}
+    private async Task SaveVerifiedCheckpointAsync(bool verified)
+    {
+        if(!verified)return;
+        // Show the comparison with the previous baseline before accepting the new verified driver.
+        PaintGraphics();
+        var reference=beforeOperation ?? checkpoint;
+        if(reference is not null && snapshot is not null && graphicsDiagnostics is not null)
+        {
+            try
+            {
+                var comparison=GraphicsHealth.Compare(reference,snapshot,graphicsDiagnostics,Demo);
+                await File.WriteAllTextAsync(Path.Combine(dataRoot,"last-comparison.json"),JsonSerializer.Serialize(comparison));
+                LastComparisonText.Text=string.Join("\n",comparison.Select(Describe));LastComparisonPanel.Visibility=Visibility.Visible;
+            }
+            catch(Exception e){Log(T("checkpointReadError")+" · "+e.GetType().Name);}
+        }
+        beforeOperation=null;await SaveCheckpointCoreAsync();PaintGraphics();
+    }
+}

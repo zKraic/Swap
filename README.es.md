@@ -1,0 +1,21 @@
+# Swap · KraicDev
+
+**Controladores gráficos para Windows, en un EXE portable.** NVIDIA, AMD e Intel Arc. Gratis, sin cuenta ni suscripción.
+
+[Página](https://zkraic.github.io/Swap/) · [Descargar](https://github.com/zKraic/Swap/releases/tag/v0.4.0-preview) · [English](README.md)
+
+**Versión experimental 0.4.0.** La instalación y retirada se probaron con un backend simulado. Falta validar un cambio físico de tarjeta; la firma depende de aprobación externa. [Resultados](docs/validation/V04-RESULTS.md).
+
+Con la nueva tarjeta conectada, **Instalar y limpiar** busca un driver de pantalla compatible en Windows Update, lo descarga, respalda los paquetes actuales, instala y verifica el driver activo firmado. Solo después retira paquetes Display sin uso de marcas ausentes. Conserva GPU presentes, integradas y configuraciones híbridas.
+
+**Nuevo: Crear respaldo** exporta los drivers gráficos sin modificarlos. Comprueba archivos alterados, añadidos o ausentes antes de restaurar. Incluye biblioteca de INF firmados, diagnóstico de GPU/pantallas/Hz, eventos gráficos y comparación antes/después.
+
+Descarga **Swap.exe**, ábrelo y acepta UAC. No hay instalador de Swap ni ZIP ni instalación separada de .NET. El diagnóstico no necesita reiniciar; Windows puede exigirlo después de cambiar drivers. Swap guarda la sesión y conserva lo pendiente.
+
+Windows 10/11 x64, PowerShell 5.1, conexión y Windows Update operativo para descarga automática. 4 GB libres más el espacio del driver. No instala toda la suite del fabricante ni utiliza DDU, limpieza del registro o retirada forzada. Bloquea cambios en sesiones remotas y ante reinicios pendientes de Windows.
+
+Seis idiomas según el PC y temas claro/oscuro/sistema. Datos en `%LOCALAPPDATA%\Swap`; una carpeta `Data` escribible junto al EXE permite almacenamiento portable.
+
+Código en `main`. [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · [Recuperación](docs/RECOVERY.md) · [Firma](docs/SIGNING.md).
+
+Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Las modificaciones distribuidas deben conservar la GPL, avisos y código correspondiente. Permite usos comerciales; la [política de marca](TRADEMARKS.md) no autoriza suplantar al autor ni presentar un fork como oficial. Las descargas oficiales son gratuitas.
