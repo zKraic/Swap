@@ -8,7 +8,7 @@ Coverage includes all six NVIDIA/AMD/Intel directions, integrated GPU preservati
 
 Independent-backup tests cover Display-only export, no driver mutations, altered/added/missing files, nested manifest names, malicious manifest paths, incomplete/admin/duplicate inventory rejection, export failures and cancellation. Manifest hashes are integrity metadata, not publisher authentication; signatures are checked separately.
 
-Native guest checks cover inventory, graphics APIs/events and temporary RunOnce register/remove. The WPF audit covers 120 combinations of six languages, two themes, two sizes and five pages; three full simulated workflows; checkpoint/disclosures; and independent backup. It checks layout and excessive Home/Settings scroll at the wide size, not every DPI or monitor configuration.
+Native guest checks cover inventory, graphics APIs/events and temporary RunOnce register/remove. The WPF audit covers 120 combinations of six languages, two themes, two sizes and five pages; three full simulated workflows; checkpoint/disclosures; independent backup; and diagnostic-report export with the executable version. It checks layout and excessive Home/Settings scroll at the wide size, not every DPI or monitor configuration.
 
 Before a stable release: validate physical GPU replacement in each vendor direction, same-vendor upgrades, OEM/hybrid laptops, real Windows Update downloads/install/removal, interruption/recovery, interactive restart continuation, Windows 11, and representative games/display/audio configurations. Record hardware/OS/version/hash and each outcome. Do not test privileged driver changes on a user's working remote PC.
 

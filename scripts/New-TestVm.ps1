@@ -9,7 +9,7 @@ $output = Join-Path $root ('artifacts/vm/runs/' + (Get-Date -Format 'yyyyMMdd-HH
 if (!(Test-Path -LiteralPath (Join-Path $bundle 'tests/Swap.Tests.exe'))) { throw 'Publish the self-contained test executable before creating the VM configuration.' }
 Copy-Item -LiteralPath (Join-Path $root 'dist/Swap.exe') -Destination (Join-Path $bundle 'Swap.exe') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Invoke-GuestTests.ps1') -Destination (Join-Path $bundle 'Invoke-GuestTests.ps1') -Force
-@{ expectedCorePassed=([int](Get-Content (Join-Path $root 'artifacts/test-results.json') -Raw|ConvertFrom-Json).passed+3); expectedUiPassed=126; expectedCaptures=33; author='KraicDev'; hostComputer=$env:COMPUTERNAME; hostUuid=[string](Get-CimInstance Win32_ComputerSystemProduct).UUID;
+@{ expectedCorePassed=([int](Get-Content (Join-Path $root 'artifacts/test-results.json') -Raw|ConvertFrom-Json).passed+3); expectedUiPassed=127; expectedCaptures=33; author='KraicDev'; hostComputer=$env:COMPUTERNAME; hostUuid=[string](Get-CimInstance Win32_ComputerSystemProduct).UUID;
     appSha256=(Get-FileHash -LiteralPath (Join-Path $bundle 'Swap.exe') -Algorithm SHA256).Hash;
     testsSha256=(Get-FileHash -LiteralPath (Join-Path $bundle 'tests/Swap.Tests.exe') -Algorithm SHA256).Hash } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $bundle 'manifest.json') -Encoding UTF8
@@ -33,4 +33,3 @@ $path = Join-Path $output 'Swap-Tests.wsb'
 $config | Set-Content -LiteralPath $path -Encoding UTF8
 @{ configuration=$path; output=$output; bundle=$bundle; appSha256=(Get-FileHash -LiteralPath (Join-Path $bundle 'Swap.exe') -Algorithm SHA256).Hash } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'artifacts/vm/current-run.json') -Encoding UTF8
 Write-Output $path
-

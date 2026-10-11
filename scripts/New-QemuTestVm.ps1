@@ -12,7 +12,7 @@ $bundle = Join-Path $inputPath 'bundle'
 Copy-Item -LiteralPath (Join-Path $root 'dist/Swap.exe') -Destination (Join-Path $bundle 'Swap.exe') -Force
 Copy-Item -LiteralPath (Join-Path $root 'artifacts/vm/bundle/tests/Swap.Tests.exe') -Destination (Join-Path $bundle 'tests/Swap.Tests.exe') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Invoke-GuestTests.ps1') -Destination (Join-Path $bundle 'Invoke-GuestTests.ps1') -Force
-@{ expectedCorePassed=([int](Get-Content (Join-Path $root 'artifacts/test-results.json') -Raw|ConvertFrom-Json).passed+3); expectedUiPassed=126; expectedCaptures=33; author='KraicDev'; hostComputer=$env:COMPUTERNAME; hostUuid=[string](Get-CimInstance Win32_ComputerSystemProduct).UUID;
+@{ expectedCorePassed=([int](Get-Content (Join-Path $root 'artifacts/test-results.json') -Raw|ConvertFrom-Json).passed+3); expectedUiPassed=127; expectedCaptures=33; author='KraicDev'; hostComputer=$env:COMPUTERNAME; hostUuid=[string](Get-CimInstance Win32_ComputerSystemProduct).UUID;
     appSha256=(Get-FileHash -LiteralPath (Join-Path $bundle 'Swap.exe') -Algorithm SHA256).Hash;
     testsSha256=(Get-FileHash -LiteralPath (Join-Path $bundle 'tests/Swap.Tests.exe') -Algorithm SHA256).Hash } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $bundle 'manifest.json') -Encoding UTF8
@@ -86,4 +86,3 @@ if ($LASTEXITCODE -ne 0) { throw 'Virtual disk creation failed.' }
     emulator=(Join-Path $LabRoot 'tools/qemu/qemu-system-x86_64.exe'); serialLog=(Join-Path $LabRoot 'guest-serial.log'); accelerator='tcg'; guestName='SWAPTESTVM'; hostRestart=$false; network=$false } |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'artifacts/vm/qemu-run.json') -Encoding UTF8
 Write-Output ('QEMU isolated input and virtual disk prepared: ' + $LabRoot)
-

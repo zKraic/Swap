@@ -76,6 +76,14 @@ public partial class MainWindow
             RefreshFiles(); RecoveryNav.IsChecked = true; UpdateLayout();
             if (BackupList.Items.Count == 0 || CreateBackupButton.Content?.ToString() != T("backupCreate")) throw new InvalidOperationException("Independent backup UI failed.");
             results.Add(new { scenario="independent-backup-demo",passed=true });
+            using (var report = JsonDocument.Parse(await File.ReadAllTextAsync(await ExportReportAsync())))
+            {
+                var exported=report.RootElement;
+                var expectedVersion=System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3);
+                if(exported.GetProperty("version").GetString()!=expectedVersion || exported.GetProperty("author").GetString()!="KraicDev" || !exported.GetProperty("simulated").GetBoolean() || exported.GetProperty("adapters").GetArrayLength()!=snapshot!.Adapters.Count)
+                    throw new InvalidOperationException("Exported diagnostic report metadata or inventory failed.");
+            }
+            results.Add(new { scenario="diagnostic-report-export-demo",passed=true });
             File.WriteAllText(Path.Combine(output, "results.json"), JsonSerializer.Serialize(new { passed = results.Count, failed = 0, scope = "Actual WPF rendering + simulated workflow. No physical driver operations.", results }, new JsonSerializerOptions { WriteIndented = true }));
             Application.Current.Shutdown(0);
         }

@@ -1,12 +1,21 @@
 {
   "author": "KraicDev",
   "version": "0.4.0-preview",
-  "releaseStatus": "draft",
-  "sourceCommit": "b620c400e4d4a2293c880b8fbb4e1cf136cbe61a",
-  "appSha256": "5AB888161BCB9A006121D6CE7A6C63025F80DE3D1B824BD0D966CAB31B8726C6",
-  "bytes": 65640253,
-  "ci": { "passed": 115, "failed": 0, "run": "https://github.com/zKraic/Swap/actions/runs/38163608090" },
-  "isolatedWindows": { "status": "pending", "completed": false },
+  "releaseStatus": "draft; corrected build and exact VM validation pending",
+  "sourceCommit": null,
+  "appSha256": null,
+  "bytes": null,
+  "ci": {
+    "expectedPassed": 115,
+    "status": "pending"
+  },
+  "isolatedWindows": {
+    "completed": false,
+    "expectedCorePassed": 118,
+    "expectedCaptures": 33,
+    "expectedUiPassed": 127,
+    "status": "pending"
+  },
   "authenticode": "NotSigned",
   "physicalGpuInstallationRemoval": "not-tested",
   "games": "not-tested",

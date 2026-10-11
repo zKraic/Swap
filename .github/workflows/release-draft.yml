@@ -40,11 +40,25 @@ jobs:
           if($hash -ne $expected){throw 'Artifact checksum mismatch'}
           $version=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe.FullName).ProductVersion.Split('+')[0]
           if($version -ne '0.4.0'){throw 'Unexpected version'}
-          @{author='KraicDev';version=$version;appSha256=$hash;bytes=$exe.Length;sourceCommit=$run.head_sha;buildRun=$run.html_url;ciCorePassed=$report.passed;unsigned=$true;vmValidation='pending; draft must not be published until the exact EXE passes isolated Windows checks'} | ConvertTo-Json | Set-Content release-input/build-provenance.json -Encoding utf8
+          $vmValidation='pending; draft must not be published until the exact EXE passes isolated Windows checks'
+          $validation=Get-Content docs/validation/v04-result.json -Raw | ConvertFrom-Json
+          if($validation.appSha256 -eq $hash -and $validation.isolatedWindows.completed -eq $true){$vmValidation=$validation.isolatedWindows}
+          @{author='KraicDev';version=$version;appSha256=$hash;bytes=$exe.Length;sourceCommit=$run.head_sha;buildRun=$run.html_url;ciCorePassed=$report.passed;unsigned=$true;vmValidation=$vmValidation;validationRecord='https://github.com/zKraic/Swap/blob/main/docs/validation/v04-result.json'} | ConvertTo-Json -Depth 8 | Set-Content release-input/build-provenance.json -Encoding utf8
           $run.head_sha | Set-Content release-input/source-commit.txt -Encoding ascii
-      - name: Create unpublished preview draft
+      - name: Create or update unpublished preview draft
         shell: pwsh
         run: |
           $source=(Get-Content release-input/source-commit.txt -Raw).Trim()
-          gh release create v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
-          if($LASTEXITCODE -ne 0){throw 'Draft creation failed; existing releases are never overwritten'}
+          $releases=gh api "repos/$env:GH_REPO/releases" | ConvertFrom-Json
+          if($LASTEXITCODE -ne 0){throw 'Release lookup failed'}
+          $existing=@($releases | Where-Object tag_name -eq 'v0.4.0-preview')
+          if($existing.Count -gt 1){throw 'Ambiguous release'}
+          if($existing.Count -eq 1){
+            if(!$existing[0].draft){throw 'Published releases must never be overwritten'}
+            gh release upload v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json --clobber
+            if($LASTEXITCODE -ne 0){throw 'Draft asset update failed'}
+            gh release edit v0.4.0-preview --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
+          }else{
+            gh release create v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
+          }
+          if($LASTEXITCODE -ne 0){throw 'Draft preparation failed'}

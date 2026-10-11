@@ -390,18 +390,21 @@ public partial class MainWindow : Window
     }
     private void OpenSources(object sender, RoutedEventArgs e) { if (!busy) Open("https://github.com/zKraic/Swap"); }
     private string ReportPath(string suffix) { var folder = Path.Combine(dataRoot, "Reports"); EnsureWritable(folder); return Path.Combine(folder, DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N")[..6] + suffix); }
-    private async void ExportReport(object sender, RoutedEventArgs e) => await Guard(async () =>
+    private static string ApplicationVersion => Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "unknown";
+    private async void ExportReport(object sender, RoutedEventArgs e) => await Guard(async () => { await ExportReportAsync(); });
+    private async Task<string> ExportReportAsync()
     {
         await AnalyzeAsync(); var current=snapshot!;
-        var report = new { app = "Swap", author = "KraicDev", version = "0.3.0", generated = DateTimeOffset.Now, simulated = Demo, current.Os, current.Admin, current.Complete, current.PendingReboot, current.Laptop, current.FreeBytes,
+        var report = new { app = "Swap", author = "KraicDev", version = ApplicationVersion, generated = DateTimeOffset.Now, simulated = Demo, current.Os, current.Admin, current.Complete, current.PendingReboot, current.Laptop, current.FreeBytes,
             adapters = current.Adapters.Select(a => new { a.Name, a.Vendor, a.Version, a.Inf, a.Problem, a.Signed }), current.Drivers,
             displays=graphicsDiagnostics?.Displays.Select(d=>new {d.Name,d.Width,d.Height,d.Hz,d.MaximumHz}),
             probes=graphicsDiagnostics?.Probes.Select(p=>new {p.Name,p.DedicatedBytes,p.Hardware,p.Direct3D,p.FeatureLevel,p.Error}),
             incidents=graphicsDiagnostics?.Incidents, graphicsDiagnostics?.DisplaysComplete, graphicsDiagnostics?.EventsComplete,
             changes=checkpoint is not null && graphicsDiagnostics is not null && checkpoint.MachineId==current.MachineId && checkpoint.Simulated==Demo ? GraphicsHealth.Compare(checkpoint,current,graphicsDiagnostics,Demo) : null,
             scope = "Windows PnP, driver, Direct3D and display observations. No electrical, cabling, FPS or game certification." };
-        var path = ReportPath("-report.json"); await File.WriteAllTextAsync(path, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true })); Status.Text = T("saved"); Log(path);
-    });
+        var path = ReportPath("-report.json"); await File.WriteAllTextAsync(path, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true })); Status.Text = T("saved"); Log(path); return path;
+    }
     private async void Dxdiag(object sender, RoutedEventArgs e) => await Guard(async () =>
     {
         if (Demo) { Status.Text = T("notDemo"); return; } var path = ReportPath("-dxdiag.xml"); var result = await WindowsPlatform.RunAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "dxdiag.exe"), ["/whql:off", "/x", path], 180);
