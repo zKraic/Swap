@@ -61,8 +61,11 @@ jobs:
             if(!$existing[0].draft){throw 'Published releases must never be overwritten'}
             gh release upload v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json release-input/validation.json --clobber
             if($LASTEXITCODE -ne 0){throw 'Draft asset update failed'}
-            gh release edit v0.4.0-preview --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
+            # GITHUB_TOKEN cannot retarget older commits containing workflow changes.
+            # The maintainer sets the exact source commit from build-provenance.json in the UI.
+            gh release edit v0.4.0-preview --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
           }else{
             gh release create v0.4.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json release-input/validation.json --target $source --title 'Swap 0.4.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
           }
           if($LASTEXITCODE -ne 0){throw 'Draft preparation failed'}
+          Write-Output "Before publication, the maintainer must verify the tag target is $source and validation.json matches the EXE."
