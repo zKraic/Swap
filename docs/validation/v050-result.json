@@ -1,0 +1,49 @@
+{
+  "isolatedWindows": {
+    "hostRestart": false,
+    "preinstalledDotnet": false,
+    "uiFailed": 0,
+    "completed": true,
+    "coreFailed": 0,
+    "captures": 43,
+    "physicalGpuPassthrough": false,
+    "uiPassed": 155,
+    "os": "Microsoft Windows 10 Enterprise LTSC Evaluation",
+    "network": false,
+    "hostDisplayUnchanged": true,
+    "corePassed": 180,
+    "checksPassed": 12,
+    "exportMethod": "Guest agent read of the guest reports after completion",
+    "status": "passed",
+    "osVersion": "10.0.19044",
+    "initialWindowFits": true,
+    "guestContext": "SYSTEM account, non-interactive session",
+    "guestFlags": "--windows-readonly --graphics-readonly --cleanup-inventory-readonly --resume-registration --deep-clean-lab; Swap.exe --ui-audit",
+    "deepCleanupLab": {
+      "realSignedPackages": ["nvhda.inf (MEDIA)", "nvpcf.inf (SoftwareDevice)", "nvppc.inf (USB, boot-critical class, opt-in)", "nvvad.inf (MEDIA)"],
+      "removed": 16,
+      "restored": 14,
+      "failed": 0,
+      "administratorOnlyBackupAcl": true
+    },
+    "disconnectedDeviceExperiment": "pnputil /delete-driver refused oem5.inf bound to a hot-unplugged PCI device (0xE0000235); succeeded after pnputil /remove-device"
+  },
+  "author": "KraicDev",
+  "games": "not-tested",
+  "sourceCommit": "7e87ef2225fa7e876ac551f56e46f5738ad3f15a",
+  "scope": "Exact CI executable in an isolated Windows guest: WPF rendering, simulated transitions, read-only native observations and a destructive deep-cleanup lab with real signed driver packages and simulated vendor software. No physical GPU, cable, power, FPS or game certification.",
+  "physicalGpuInstallationRemoval": "not-tested",
+  "bytes": 65762201,
+  "realWindowsUpdateDownload": "not-tested",
+  "version": "0.5.0-preview",
+  "releaseStatus": "Experimental preview; exact CI executable passed isolated Windows validation",
+  "interactivePostRestartContinuation": "not-tested",
+  "ci": {
+    "passed": 175,
+    "run": "https://github.com/zKraic/Swap/actions/runs/38316687325",
+    "failed": 0
+  },
+  "authenticode": "NotSigned",
+  "appSha256": "C4D1FCD857E633DBC688D917B9AB8D5AB36FD49D2F2EA52AE123FB455B3062F6",
+  "windows11Hardware": "not-tested"
+}
