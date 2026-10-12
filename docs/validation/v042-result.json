@@ -1,1 +1,39 @@
-{"author":"KraicDev","version":"0.4.2","sourceCommit":"pending","appSha256":"pending","isolatedWindows":{"completed":false},"unsigned":true}
+{
+  "isolatedWindows": {
+    "hostRestart": false,
+    "preinstalledDotnet": false,
+    "uiFailed": 0,
+    "completed": true,
+    "coreFailed": 0,
+    "captures": 34,
+    "physicalGpuPassthrough": false,
+    "uiPassed": 129,
+    "os": "Microsoft Windows 10 Enterprise LTSC Evaluation",
+    "network": false,
+    "hostDisplayUnchanged": true,
+    "corePassed": 141,
+    "checksPassed": 12,
+    "exportMethod": "Offline read after guest shutdown",
+    "status": "passed",
+    "osVersion": "10.0.19044",
+    "initialWindowFits": true
+  },
+  "author": "KraicDev",
+  "games": "not-tested",
+  "sourceCommit": "0aa06427af62493c7031d0196e74193c046c036e",
+  "scope": "Actual self-contained WPF execution and native read-only Windows observations; driver transitions use simulated adapters. No physical GPU, cable, power, FPS or game certification.",
+  "physicalGpuInstallationRemoval": "not-tested",
+  "bytes": 65656815,
+  "realWindowsUpdateDownload": "not-tested",
+  "version": "0.4.2-preview",
+  "releaseStatus": "Experimental preview; exact CI executable passed isolated Windows validation",
+  "interactivePostRestartContinuation": "not-tested",
+  "ci": {
+    "passed": 138,
+    "run": "https://github.com/zKraic/Swap/actions/runs/38209081611",
+    "failed": 0
+  },
+  "authenticode": "NotSigned",
+  "appSha256": "364DCDF53A19CD888718B5158780D1019189F602501B606A6BD59379CE1E8FB7",
+  "windows11Hardware": "not-tested"
+}
