@@ -36,6 +36,7 @@ public sealed class Continuation(IPlatform platform)
             token.ThrowIfCancellationRequested(); stage?.Invoke("verify");
             var active=VerifiedTarget(plan,current) ?? throw new InvalidOperationException("El nuevo driver no está activo, firmado y verificado. No se limpia ningún paquete.");
             _ = Planner.Create(current,plan.Source,plan.Target,plan.Package,plan.TargetId,plan.CleanupAllAbsent);
+            if (!await platform.VerifyGraphicsAsync(active)) throw new InvalidOperationException("Direct3D on the selected GPU could not be verified. Cleanup blocked.");
             await SessionBackups.VerifyAsync(plan.Before, session, token);
             async Task<Snapshot> Validate()
             {

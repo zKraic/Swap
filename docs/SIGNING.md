@@ -4,6 +4,8 @@ KraicDev · Swap.
 
 **Current status: unsigned.** No trusted code-signing identity has been issued for Swap. Metadata/SHA-256 do not remove UAC's unknown publisher. Self-signed certificates do not solve this for other PCs. No paid signing service will be purchased.
 
+The free SignPath Foundation application was submitted on 11 October 2026 and the provider confirmed receipt. Project review is pending. Submission does not mean approval, certificate issuance or a signed release. Contact details and private application material are not published here.
+
 ## Free route
 
 [SignPath Foundation](https://signpath.org/terms.html) offers eligible open-source projects free signing. Acceptance is discretionary: released/maintained project, verifiable reputation, traceable builds, maintainer MFA and manual release approval. A new project cannot assume eligibility.

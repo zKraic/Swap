@@ -33,7 +33,9 @@ public sealed class Maintenance(IPlatform platform)
                 if (!s.Adapters.Contains(adapter)) throw new InvalidOperationException("El driver activo cambió; vuelve a analizar.");
                 return s;
             }
-            await Validate(); await SessionBackups.VerifyAsync(before, session, token);
+            await Validate();
+            if (!await platform.VerifyGraphicsAsync(adapter)) throw new InvalidOperationException("Direct3D on the selected GPU could not be verified. Cleanup blocked.");
+            await SessionBackups.VerifyAsync(before, session, token);
             Save("state", new { phase = "cleanup", completed = false }); stage?.Invoke("cleanup");
             foreach (var d in plan.Remove)
             {

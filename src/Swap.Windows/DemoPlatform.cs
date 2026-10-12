@@ -21,4 +21,5 @@ public sealed class DemoPlatform : IPlatform
     public async Task<CommandResult> InstallAsync(Package package) { await Task.Delay(800); installed = true; return new(0, "Instalación simulada."); }
     public async Task<CommandResult> DeleteAsync(string inf) { await Task.Delay(300); deleted = true; return new(0, "Retirada simulada."); }
     public Task<string> RestorePointAsync() => Task.FromResult("Punto de restauración simulado.");
+    public Task<bool> VerifyGraphicsAsync(Adapter adapter) => Task.FromResult(true);
 }

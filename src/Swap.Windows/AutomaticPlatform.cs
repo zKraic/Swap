@@ -52,6 +52,7 @@ public sealed class AutomaticPlatform : IPlatform
         return JsonSerializer.Deserialize<CommandResult>(await WindowsPlatform.PowerShellAsync(script, 7200)) ?? throw new IOException("Windows Update no devolvió un resultado.");
     }
     public Task<Snapshot> ScanAsync() => windows.ScanAsync();
+    public Task<bool> VerifyGraphicsAsync(Adapter adapter) => windows.VerifyGraphicsAsync(adapter);
     public Task<Package> InspectAsync(string path, Vendor target) => selectedPackage is not null && selectedPackage.Path == path && selectedPackage.Vendor == target
         ? Task.FromResult(selectedPackage) : windows.InspectAsync(path, target);
     public Task<CommandResult> ExportAsync(string inf, string destination) => windows.ExportAsync(inf, destination);

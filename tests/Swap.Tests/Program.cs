@@ -267,6 +267,9 @@ await Test("Reboot continuation rejects tampered or missing integrity manifests"
 await Test("Automatic sessions cannot overwrite previous recovery sessions", async () => {foreach(var maintenance in new[]{false,true}){var f=Fake.Standard();var s=Session();Directory.CreateDirectory(s);File.WriteAllText(Path.Combine(s,"preserve.txt"),"original");await RejectAsync(()=>maintenance?new Maintenance(f).RunAsync(f.Before,f.Source,f.Target,s,_=>{}):new Engine(f).RunAsync(Plan(f),s,_=>{}));Assert(f.Calls.Count==0&&File.ReadAllText(Path.Combine(s,"preserve.txt"))=="original");}});
 await Test("Final cleanup verification tracks INF identity even when metadata changes", async () => {foreach(var maintenance in new[]{false,true}){var f=Fake.Standard();f.NoDelete=true;f.OnDelete=()=>f.Before=f.Before with {Drivers=f.Before.Drivers.Select(d=>d.Inf=="oem42.inf"?d with {Version="7.7.7.7"}:d).ToArray()};await RejectAsync(()=>maintenance?new Maintenance(f).RunAsync(f.Before,f.Source,f.Target,Session(),_=>{}):new Engine(f).RunAsync(Plan(f),Session(),_=>{}));Assert(f.Calls.Contains("delete:oem42.inf"));}});
 await Test("Cleanup preview retains active, target, hybrid and OEM packages",()=>{var f=Fake.Standard();var old=f.Before.Drivers[0];Assert(Planner.CleanupReason(f.Before,old,f.Source,f.Target,true)=="cleanupUnused");Assert(Planner.CleanupReason(f.Before,f.Before.Drivers[1],f.Source,f.Target,true)=="cleanupActive");Assert(Planner.CleanupReason(f.Before with {Laptop=true},old,f.Source,f.Target,true)=="cleanupOem");Assert(Planner.CleanupReason(f.Before with {Adapters=[..f.Before.Adapters,new("Other GPU",@"PCI\VEN_10DE&DEV_1111\1",Vendor.Nvidia,"oem15.inf","1",0,true)]},old,f.Source,f.Target,true)=="cleanupPresent");return Task.CompletedTask;});
+await Test("Signed installed driver cannot authorize cleanup without GPU Direct3D", async()=>{var f=Fake.Standard();f.GraphicsVerified=false;await RejectAsync(()=>new Engine(f).RunAsync(Plan(f),Session(),_=>{}));Assert(f.Calls.Contains("verify-graphics")&&!f.Calls.Any(c=>c.StartsWith("delete")));});
+await Test("No-offer maintenance requires verified hardware Direct3D", async()=>{var f=Fake.Standard();f.GraphicsVerified=false;await RejectAsync(()=>new Maintenance(f).RunAsync(f.Before,f.Source,f.Target,Session(),_=>{}));Assert(!f.Calls.Any(c=>c.StartsWith("delete")));});
+await Test("Restart continuation requires verified hardware Direct3D", async()=>{var(f,s)=await WaitingForRestart();f.BootId="BOOT-2";f.GraphicsVerified=false;await RejectAsync(()=>new Continuation(f).RunAsync(s,_=>{}));Assert(!f.Calls.Any(c=>c.StartsWith("delete")));});
 if(args.Contains("--graphics-native")) await Test("Real isolated guest display, Direct3D enumeration and recent events",async()=>{
     if(Environment.MachineName!="SWAPTESTVM" && Environment.UserName!="WDAGUtilityAccount")throw new InvalidOperationException("Native graphics testing belongs in the private guest.");
     var d=await GraphicsInspector.ReadAsync();Assert(d.DisplaysComplete&&d.Displays.Count>0&&d.Probes.Count>0&&d.EventsComplete);
@@ -294,6 +297,8 @@ sealed class Fake(Vendor source, Vendor target) : IPlatform
     public string BootId = "BOOT-1";
     public string VersionAfter = "2.0.0.0";
     public Action? OnRestorePoint, OnDelete;
+    public bool GraphicsVerified = true;
+    public Task<bool> VerifyGraphicsAsync(Adapter adapter) { Calls.Add("verify-graphics");return Task.FromResult(GraphicsVerified); }
     private bool installed; private int scansAfter;
     private readonly HashSet<string> deletedInfs=[];
     public static Fake Standard() => new(Vendor.Nvidia, Vendor.Amd);

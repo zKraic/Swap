@@ -1,6 +1,6 @@
 Use Swap **after connecting the new graphics card**, including changes between NVIDIA, AMD and Intel Arc. The primary button downloads a compatible Display driver through Windows Update, backs up existing graphics packages, installs and verifies the active signed driver, then removes eligible unused Display packages from absent brands.
 
-0.4.1 adds a compact cleanup preview explaining what can be removed and why other packages are retained. Automatic transition backups now receive integrity checks before installation, cleanup and continuation. Reused session folders are rejected, and final cleanup checks track INF identity even if metadata changes. Eight new regression cases and an expanded WPF disclosure check cover these changes.
+0.4.1 adds a compact cleanup preview explaining what can be removed and why other packages are retained. Automatic transition backups now receive integrity checks before installation, cleanup and continuation. Reused session folders are rejected, and final cleanup checks track INF identity even if metadata changes. Eleven new regression cases and an expanded WPF disclosure check cover these changes.
 
 **Experimental preview for Windows 10/11 x64.** Installation and removal tests use a simulated backend; physical GPU replacement and games are not certified. Start with diagnostics or demo mode. Remote sessions and pending servicing restarts block driver changes.
 

@@ -47,6 +47,11 @@ public sealed partial class WindowsPlatform : IPlatform
         using var reader = new StreamReader(stream); return reader.ReadToEnd();
     }
     public async Task<Snapshot> ScanAsync() => JsonSerializer.Deserialize<Snapshot>(await PowerShellAsync(Script("Scan"))) ?? throw new IOException("Inventario vacío.");
+    public async Task<bool> VerifyGraphicsAsync(Adapter adapter)
+    {
+        var diagnostics = await GraphicsInspector.ReadAsync();
+        return GraphicsHealth.Evaluate(adapter, diagnostics).Any(f => f.Code == "direct3dOk");
+    }
     private sealed record Signature(bool Valid, string Subject, string Status);
     private static async Task<Signature> SignatureAsync(string path) =>
         JsonSerializer.Deserialize<Signature>(await PowerShellAsync(Script("Signature").Replace("__PATH__", Convert.ToBase64String(Encoding.UTF8.GetBytes(path)))))!;

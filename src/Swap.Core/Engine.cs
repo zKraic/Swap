@@ -9,6 +9,7 @@ public interface IPlatform
     Task<CommandResult> InstallAsync(Package package);
     Task<CommandResult> DeleteAsync(string inf);
     Task<string> RestorePointAsync();
+    Task<bool> VerifyGraphicsAsync(Adapter adapter);
 }
 
 public sealed class Engine(IPlatform platform)
@@ -65,6 +66,7 @@ public sealed class Engine(IPlatform platform)
                 Save("state", new { phase = "verify-after-reboot", completed = false, reboot = reboot || after.PendingReboot, waitBootId = after.BootId });
                 return new(false, reboot || after.PendingReboot, session, messages);
             }
+            if (!await platform.VerifyGraphicsAsync(adapter)) throw new InvalidOperationException("Direct3D on the selected GPU could not be verified. Old packages are preserved.");
             stage?.Invoke("cleanup");
             await SessionBackups.VerifyAsync(current, session, token);
             Save("state", new { phase = "cleanup", completed = false });

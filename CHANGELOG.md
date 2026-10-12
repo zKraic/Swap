@@ -18,4 +18,4 @@ Physical GPU replacement, real installation/removal and games remain untested. O
 - Preview eligible cleanup packages and the reason each remaining package is retained.
 - Seal and verify automatic transition backups before installation, cleanup and continuation.
 - Reject reused session folders and detect remaining INF packages despite metadata changes.
-- Eight new regression cases and an expanded cleanup disclosure UI check.
+- Eleven new regression cases and an expanded cleanup disclosure UI check.

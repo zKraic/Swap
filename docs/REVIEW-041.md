@@ -12,11 +12,12 @@ Swap is used **after the new graphics card is physically connected**. Hardware c
 | Final cleanup checked an entire driver record; different metadata could hide a remaining INF | Final verification now checks the case-insensitive INF identity, both after installation and in no-offer maintenance. |
 | A caller could reuse an existing session folder | New operations reject existing folders before system calls. Previous recovery material cannot be silently overwritten. |
 | Users could not easily see the cleanup scope | The Home disclosure lists eligible packages and why others are retained. Diagnostic export includes the same decisions. |
+| Driver verification covered signature and PnP without requiring hardware Direct3D | A target-associated Direct3D verification now gates cleanup after installation, maintenance and continuation. Unavailable or ambiguous hardware verification preserves old packages. |
 | Public introduction did not emphasize when to run Swap | App and project descriptions now state that the new card must already be connected. |
 
 ## Automation, without overstating the scope
 
-The primary button discovers a hardware-matched Display driver from the computer's configured Windows Update service, downloads it, backs up existing Display packages, installs the driver, verifies the selected active signed OEM driver and removes eligible unused Display packages from absent brands. Automatic detection considers all absent supported brands. It refreshes inventory before each deletion, never uses forced removal and preserves present GPUs.
+The primary button discovers a hardware-matched Display driver from the computer's configured Windows Update service, downloads it, backs up existing Display packages, installs the driver, verifies the selected active signed OEM driver and hardware Direct3D, and removes eligible unused Display packages from absent brands. Automatic detection considers all absent supported brands. It refreshes inventory before each deletion, never uses forced removal and preserves present GPUs.
 
 If the catalog has no newer offer and the active driver is signed and healthy, Swap automatically performs the backed-up cleanup without reinstalling. If the target has no verified driver and no compatible offer, it stops. Network errors are not treated as an empty catalog. Managed Windows policies remain effective.
 
@@ -28,7 +29,7 @@ Checksum manifests detect missing or changed files, not an attacker replacing bo
 
 ## Regression evidence
 
-Eight new behavioral cases exercise sealed transition backups, corruption before installation and cleanup, maintenance corruption, reboot-time tampering/missing manifests, existing-session protection, INF metadata drift and cleanup explanations. The WPF audit additionally opens the cleanup disclosure. Final binary evidence is recorded separately in [0.4.1 validation](validation/V041-RESULTS.md).
+Eleven new behavioral cases exercise sealed transition backups, corruption before installation and cleanup, maintenance corruption, reboot-time tampering/missing manifests, existing-session protection, INF metadata drift and cleanup explanations. The WPF audit additionally opens the cleanup disclosure. Final binary evidence is recorded separately in [0.4.1 validation](validation/V041-RESULTS.md).
 
 ## Distribution and community
 
