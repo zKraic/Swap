@@ -27,7 +27,10 @@ public partial class MainWindow
         public event PropertyChangedEventHandler? PropertyChanged;
         public override string ToString() => Title;
     }
-    private ICleanupPlatform Cleanup => cleanupPlatform ??= Demo ? new DemoCleanupPlatform(Path.Combine(dataRoot, "DemoSystem")) { Physx = true } : new WindowsCleanupPlatform();
+    private ICleanupPlatform Cleanup => cleanupPlatform ??= Demo ? new DemoCleanupPlatform(DemoSandbox()) { Physx = true } : new WindowsCleanupPlatform();
+    // Cleanup never works inside Windows. Under the SYSTEM account the profile is there, so the simulated PC moves out.
+    private string DemoSandbox() => DeepCleanPlanner.Within(dataRoot, Environment.GetFolderPath(Environment.SpecialFolder.Windows))
+        ? Path.Combine(Path.GetPathRoot(Environment.SystemDirectory)!, "SwapDemo", "DemoSystem") : Path.Combine(dataRoot, "DemoSystem");
     private string CleanupBackupRoot() { if (!Demo) return WindowsCleanupPlatform.SecureRoot(); var path = Path.Combine(dataRoot, "DemoCleanup"); Directory.CreateDirectory(path); return path; }
     private string NewCleanupSession() => Path.Combine(dataRoot, "Sessions", DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-CLEAN-" + Guid.NewGuid().ToString("N")[..6]);
     public static string Size(long bytes) => bytes <= 0 ? "" : bytes >= 1L << 30 ? $"{bytes / (double)(1L << 30):0.0} GB" : bytes >= 1L << 20 ? $"{bytes / (double)(1L << 20):0} MB" : $"{Math.Max(1, bytes / 1024)} KB";

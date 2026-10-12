@@ -71,7 +71,9 @@ static class LabTests
             Assert(Registry.LocalMachine.OpenSubKey(Uninstall) is null && Registry.LocalMachine.OpenSubKey(@"SOFTWARE\NVIDIA Corporation") is null, "registry remains");
             Assert(!Directory.Exists(Path.Combine(pf, "NVIDIA App")) && Directory.Exists(Path.Combine(pf, "PhysX")), "folders");
             Assert(!(await Run("schtasks.exe", "/query", "/tn", "NvTmRep_CrashReport1_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}")).StartsWith("0 "), "task remains");
-            Assert(users.All(u => !Directory.Exists(Path.Combine(u, "AppData", "Local", "NVIDIA"))), "cache remains");
+            // Only profiles Windows registers are cleaned; a stray folder under C:\Users is not a profile.
+            var caches = plan.Items.Where(i => i.Kind == RemnantKind.Cache && i.Vendor == Vendor.Nvidia).Select(i => i.Target).ToArray();
+            Assert(caches.Length > 0 && caches.All(c => !Directory.Exists(c)), "cache remains: " + string.Join(", ", caches.Where(Directory.Exists)));
 
             var undo = await new DeepCleanEngine(platform).UndoAsync(session, secure, text => Console.WriteLine("undo: " + text));
             foreach (var result in undo.Results) Console.WriteLine($"undo {result.Status} {result.Kind} {result.Target} {result.Message}");

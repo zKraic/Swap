@@ -43,7 +43,7 @@ jobs:
           $vmValidation='pending; draft must not be published until the exact EXE passes isolated Windows checks'
           $validation=Get-Content docs/validation/v050-result.json -Raw | ConvertFrom-Json
           if($validation.appSha256 -eq $hash -and $validation.isolatedWindows.completed -eq $true){
-            if($validation.sourceCommit -ne $run.head_sha -or $validation.isolatedWindows.corePassed -ne 178 -or $validation.isolatedWindows.uiPassed -ne 155 -or $validation.isolatedWindows.checksPassed -ne 12 -or $validation.isolatedWindows.captures -ne 43){throw 'Exact validation provenance mismatch'}
+            if($validation.sourceCommit -ne $run.head_sha -or $validation.isolatedWindows.corePassed -ne 180 -or $validation.isolatedWindows.uiPassed -ne 155 -or $validation.isolatedWindows.checksPassed -ne 12 -or $validation.isolatedWindows.captures -ne 43){throw 'Exact validation provenance mismatch'}
             $vmValidation=$validation.isolatedWindows
           }
           Copy-Item docs/validation/v050-result.json release-input/validation.json
