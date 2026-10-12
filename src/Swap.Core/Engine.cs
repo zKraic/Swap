@@ -3,6 +3,7 @@ namespace Swap.Core;
 
 public interface IPlatform
 {
+    bool Simulated => false;
     Task<Snapshot> ScanAsync();
     Task<Package> InspectAsync(string path, Vendor target);
     Task<CommandResult> ExportAsync(string inf, string destination);
@@ -80,6 +81,7 @@ public sealed class Engine(IPlatform platform)
                     !check.Adapters.Any(a => a.Id == adapter.Id && a.Inf == adapter.Inf && a.Version == adapter.Version && a.Problem == 0 && a.Signed) ||
                     !Planner.EligibleCleanup(check, driver, plan.Source, plan.Target, plan.CleanupAllAbsent))
                     throw new InvalidOperationException("El estado de hardware cambió. Se detuvo la limpieza.");
+                _ = Planner.Create(check, plan.Source, plan.Target, plan.Package, plan.TargetId, plan.CleanupAllAbsent);
                 if (!check.Drivers.Contains(driver)) throw new InvalidOperationException("El paquete antiguo cambió. Revisa el inventario.");
                 await BackupIntegrity.VerifyAsync(Path.Combine(session, "backup", driver.Inf), token);
                 Log("Retirando paquete sin uso " + driver.Inf);
@@ -102,7 +104,8 @@ public sealed class Engine(IPlatform platform)
                 Save("state", new { phase = "verify-after-reboot", completed = false, reboot = true, waitBootId = final.BootId });
                 return new(false, true, session, messages);
             }
-            Log("Driver activo verificado y limpieza terminada. Falta comprobar tus juegos en el hardware real.");
+            await Preparation.SaveVerifiedAsync(platform, final, fresh, adapter, session, token);
+            Log("Driver activo verificado y limpieza terminada. Resultado guardado en preparation.json. Falta comprobar tus juegos en el hardware real.");
             Save("state", new { phase = "complete", completed = true, reboot });
             return new(true, reboot, session, messages);
         }

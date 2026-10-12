@@ -61,7 +61,8 @@ public sealed class Continuation(IPlatform platform)
             current=await Validate();
             if(plan.Remove.Any(d=>current.Drivers.Any(x=>x.Inf.Equals(d.Inf,StringComparison.OrdinalIgnoreCase)))) throw new IOException("Windows no confirmó la retirada.");
             File.WriteAllText(Path.Combine(session,"after.json"),JsonSerializer.Serialize(current));
-            Record("Nuevo driver verificado. Limpieza de paquetes antiguos terminada después del reinicio.");
+            await Preparation.SaveVerifiedAsync(platform, current, plan, active, session, token);
+            Record("Nuevo driver y Direct3D verificados después del reinicio. Resultado guardado en preparation.json.");
             Save(new {phase="complete",completed=true,reboot=false}); return new(true,false,session,messages);
         }
         catch(Exception e) { Save(new {phase="stopped",completed=false,reboot=false,error=e.Message}); Record("Continuación detenida: "+e.Message); throw; }

@@ -3,6 +3,7 @@ namespace Swap.Windows;
 
 public sealed class DemoPlatform : IPlatform
 {
+    public bool Simulated => true;
     public Vendor Target { get; set; } = Vendor.Amd;
     public IReadOnlyList<Adapter> ExtraAdapters { get; set; } = [];
     private bool installed;

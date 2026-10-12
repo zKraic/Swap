@@ -53,7 +53,8 @@ public sealed class Maintenance(IPlatform platform)
             }
             var final = await Validate(); Save("after", final);
             if (plan.Remove.Any(d => final.Drivers.Any(x => x.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase)))) throw new IOException("Windows no confirmó la retirada del paquete.");
-            Record("Driver activo firmado, sin error PnP. No hay nuevas ofertas compatibles en el catálogo consultado.");
+            await Preparation.SaveVerifiedAsync(platform, final, plan, adapter, session, token);
+            Record("Driver activo firmado y Direct3D verificado al terminar. Resultado guardado en preparation.json.");
             Save("state", new { phase = "complete", completed = true, installed = false }); return new(true, false, session, messages);
         }
         catch (Exception e) { Save("state", new { phase = "stopped", completed = false, reboot, error = e.Message }); Record(e.Message); throw; }

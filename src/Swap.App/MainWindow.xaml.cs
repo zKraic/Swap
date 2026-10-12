@@ -404,6 +404,8 @@ public partial class MainWindow : Window
         var report = new { app = "Swap", author = "KraicDev", version = ApplicationVersion, generated = DateTimeOffset.Now, simulated = Demo, current.Os, current.Admin, current.Complete, current.PendingReboot, current.Laptop, current.FreeBytes,
             adapters = current.Adapters.Select(a => new { a.Name, a.Vendor, a.Version, a.Inf, a.Problem, a.Signed }), current.Drivers,
             cleanup = current.Drivers.Select(d => new { d.Inf, d.Provider, reason = TargetAdapter is null ? "selectGpu" : Planner.CleanupReason(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0), eligible = TargetAdapter is not null && Planner.EligibleCleanup(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0) }),
+            preparation = Preparation.Assess(current, TargetAdapter, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0,
+                graphicsDiagnostics is not null && GraphicsHealth.Evaluate(TargetAdapter, graphicsDiagnostics).Any(f => f.Code == "direct3dOk")),
             displays=graphicsDiagnostics?.Displays.Select(d=>new {d.Name,d.Width,d.Height,d.Hz,d.MaximumHz}),
             probes=graphicsDiagnostics?.Probes.Select(p=>new {p.Name,p.DedicatedBytes,p.Hardware,p.Direct3D,p.FeatureLevel,p.Error}),
             incidents=graphicsDiagnostics?.Incidents, graphicsDiagnostics?.DisplaysComplete, graphicsDiagnostics?.EventsComplete,

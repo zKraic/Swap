@@ -274,6 +274,41 @@ await Test("Native display hardware prefixes associate with PnP instance IDs",()
 await Test("Identical PCI models do not receive guessed display routing",()=>{var d=HealthData();var findings=GraphicsHealth.Evaluate(healthAdapter,d with {Probes=[d.Probes[0],d.Probes[0]]});Assert(findings.Any(f=>f.Code=="displayUnknown")&&!findings.Any(f=>f.Code=="displayConnected"));return Task.CompletedTask;});
 await Test("GPU choice selects one unconfigured card but never guesses multiple targets",()=>{var healthy=healthAdapter with {Inf="oem99.inf"};var basicGpu=healthy with {Id=@"PCI\VEN_8086&DEV_56A0\NEW",Vendor=Vendor.Intel,Inf="display.inf"};Assert(TargetChoice.Select([healthy,basicGpu],null)==basicGpu);Assert(TargetChoice.Select([healthy,basicGpu with {Inf="oem50.inf"}],null) is null);Assert(TargetChoice.Select([healthy with {Inf="display.inf"},basicGpu],null) is null);Assert(TargetChoice.Select([healthy,basicGpu],healthy.Id)==healthy);Assert(TargetChoice.Select([],null) is null);Assert(basicGpu.SelectionLabel.Contains("DEV_56A0"));return Task.CompletedTask;});
 await Test("Known remote-control tools are recognized without stopping them",()=>{foreach(var name in new[]{"TeamViewer","TeamViewer_Service","TeamViewer_Desktop","AnyDesk","RustDesk","remoting_host","parsecd"})Assert(WindowsPlatform.IsKnownRemoteTool(name));foreach(var name in new[]{"explorer","qemu-ga","powershell","dotnet"})Assert(!WindowsPlatform.IsKnownRemoteTool(name));return Task.CompletedTask;});
+await Test("Every successful workflow stores a final preparation receipt",async()=>{
+    foreach(var mode in new[]{"install","maintenance","resume"}){
+        var f=Fake.Standard();var s=Session();Outcome outcome;
+        if(mode=="resume"){f.InstallCode=3010;await new Engine(f).RunAsync(Plan(f),s,_=>{});f.BootId="BOOT-2";outcome=await new Continuation(f).RunAsync(s,_=>{});}
+        else outcome=mode=="install"?await new Engine(f).RunAsync(Plan(f),s,_=>{}):await new Maintenance(f).RunAsync(f.Before,f.Source,f.Target,s,_=>{});
+        using var receipt=JsonDocument.Parse(File.ReadAllText(Path.Combine(s,"preparation.json")));
+        Assert(outcome.Verified&&receipt.RootElement.GetProperty("simulated").GetBoolean()&&receipt.RootElement.GetProperty("result").GetProperty("Ready").GetBoolean()&&receipt.RootElement.GetProperty("backupIntegrityVerified").GetBoolean());
+        Assert(f.Calls.Count(c=>c=="verify-graphics")==2);
+    }
+});
+foreach(var mode in new[]{"install","maintenance","resume"}) await Test("Final Direct3D regression stops "+mode,async()=>{
+    var f=Fake.Standard();var s=Session();f.OnDelete=()=>f.GraphicsVerified=false;
+    if(mode=="resume"){f.InstallCode=3010;await new Engine(f).RunAsync(Plan(f),s,_=>{});f.BootId="BOOT-2";await RejectAsync(()=>new Continuation(f).RunAsync(s,_=>{}));}
+    else await RejectAsync(()=>mode=="install"?new Engine(f).RunAsync(Plan(f),s,_=>{}):new Maintenance(f).RunAsync(f.Before,f.Source,f.Target,s,_=>{}));
+    Assert(!File.Exists(Path.Combine(s,"preparation.json"))&&File.ReadAllText(Path.Combine(s,"state.json")).Contains("stopped"));
+});
+await Test("New unused package arriving during cleanup prevents false completion",async()=>{
+    var f=Fake.Standard();f.OnDelete=()=>f.Before=f.Before with {Drivers=[..f.Before.Drivers,f.Before.Drivers[0] with {Inf="oem55.inf"}]};var s=Session();
+    var plan=Planner.Create(f.Before,f.Source,f.Target,f.Package,cleanupAllAbsent:true);
+    await RejectAsync(()=>new Engine(f).RunAsync(plan,s,_=>{}));Assert(!f.Calls.Contains("delete:oem55.inf")&&!File.Exists(Path.Combine(s,"preparation.json")));
+});
+await Test("Remote tool appearing after installation blocks deletion",async()=>{
+    var f=Fake.Standard();await RejectAsync(()=>new Engine(f).RunAsync(Plan(f),Session(),text=>{if(text=="installed")f.Before=f.Before with {Remote=true};}));Assert(!f.Calls.Any(c=>c.StartsWith("delete")));
+});
+await Test("Final remote-session drift cannot report completion",async()=>{
+    var f=Fake.Standard();f.OnDelete=()=>f.Before=f.Before with {Remote=true};var s=Session();await RejectAsync(()=>new Engine(f).RunAsync(Plan(f),s,_=>{}));Assert(!File.Exists(Path.Combine(s,"preparation.json")));
+});
+await Test("Preparation assessment preserves recovery packages and reports pending prerequisites",()=>{
+    var f=Fake.Standard();var active=f.Before.Adapters[0];var clean=f.Before with {Drivers=[f.Before.Drivers[1]]};
+    Assert(Preparation.Assess(clean,active,f.Source,f.Target,true,true).Ready);
+    Assert(!Preparation.Assess(f.Before,active,f.Source,f.Target,true,true).Ready);
+    Assert(!Preparation.Assess(clean with {PendingReboot=true},active,f.Source,f.Target,true,true).Ready);
+    Assert(!Preparation.Assess(clean,active,f.Source,f.Target,true,false).Ready);
+    Assert(!Preparation.Assess(clean,null,f.Source,f.Target,true,true).Ready);return Task.CompletedTask;
+});
 if(args.Contains("--graphics-native")) await Test("Real isolated guest display, Direct3D enumeration and recent events",async()=>{
     if(Environment.MachineName!="SWAPTESTVM" && Environment.UserName!="WDAGUtilityAccount")throw new InvalidOperationException("Native graphics testing belongs in the private guest.");
     var d=await GraphicsInspector.ReadAsync();Assert(d.DisplaysComplete&&d.Displays.Count>0&&d.Probes.Count>0&&d.EventsComplete);
@@ -286,6 +321,7 @@ return failed == 0 ? 0 : 1;
 
 sealed class Fake(Vendor source, Vendor target) : IPlatform
 {
+    public bool Simulated => true;
     public Vendor Source => source; public Vendor Target => target;
     public Snapshot Before { get; set; } = new("Windows test", "TEST-PC", true, false, false, false, 20L * 1024 * 1024 * 1024,
         [new("GPU", Hardware(target) + @"\1", target, "oem99.inf", "1.0.0.0", 0, true)],
