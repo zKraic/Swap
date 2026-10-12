@@ -2,9 +2,9 @@
 
 **Prepara Windows después de conectar una gráfica de otra marca.** NVIDIA, AMD e Intel Arc. Gratis, sin cuenta ni suscripción.
 
-[Página](https://zkraic.github.io/Swap/) · [Descargar](https://github.com/zKraic/Swap/releases/tag/v0.4.1-preview) · [English](README.md)
+[Página](https://zkraic.github.io/Swap/) · [Descargar](https://github.com/zKraic/Swap/releases) · [English](README.md)
 
-**Versión experimental 0.4.1.** La instalación y retirada se probaron con un backend simulado. Falta validar un cambio físico de tarjeta; la firma depende de aprobación externa. [Resultados](docs/validation/V041-RESULTS.md).
+**Versión experimental 0.4.2.** La instalación y retirada se probaron con un backend simulado. Falta validar un cambio físico de tarjeta; la firma depende de aprobación externa. [Resultados](docs/validation/V042-RESULTS.md).
 
 Con la nueva tarjeta conectada, **Instalar y limpiar** busca un driver de pantalla compatible en Windows Update, lo descarga, respalda los paquetes actuales, instala y verifica el driver activo firmado y Direct3D en hardware. Solo después retira paquetes Display sin uso de marcas ausentes. Conserva GPU presentes, integradas y configuraciones híbridas.
 
@@ -20,4 +20,6 @@ Código en `main`. [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · 
 
 Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Las modificaciones distribuidas deben conservar la GPL, avisos y código correspondiente. Permite usos comerciales; la [política de marca](TRADEMARKS.md) no autoriza suplantar al autor ni presentar un fork como oficial. Las descargas oficiales son gratuitas.
 
-La vista de limpieza muestra qué paquetes puede retirar y por qué conserva los demás. Los respaldos del cambio automático se verifican antes de instalar, limpiar y continuar tras un reinicio. [Revisión crítica del código](docs/REVIEW-041.md).
+La vista de limpieza muestra qué paquetes puede retirar y por qué conserva los demás. Los respaldos del cambio automático se verifican antes de instalar, limpiar y continuar tras un reinicio. [Revisión crítica del código](docs/REVIEW-042.md).
+
+La 0.4.2 repite la verificación gráfica al terminar y guarda un resultado de preparación en la sesión. El informe indica requisitos pendientes y motivos para conservar paquetes. [Comunidad y pruebas de hardware](docs/COMMUNITY.md) · [Demostración](https://www.tiktok.com/@kraicdev/video/7695648273075375380).

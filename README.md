@@ -1,10 +1,10 @@
 <p align="center"><img src=".github/media/banner.svg" alt="Swap — GPU driver utility by KraicDev" width="100%"></p>
 
-<p align="center"><a href="https://zkraic.github.io/Swap/">Website</a> · <a href="https://github.com/zKraic/Swap/releases/tag/v0.4.1-preview">Download EXE</a> · <a href="README.es.md">Español</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
+<p align="center"><a href="https://zkraic.github.io/Swap/">Website</a> · <a href="https://github.com/zKraic/Swap/releases">Download EXE</a> · <a href="README.es.md">Español</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
 
 **Prepare Windows after connecting a graphics card of another brand.** NVIDIA, AMD and Intel Arc. Free, open source, no account or subscription.
 
-> **Experimental preview · Windows 10/11 x64.** Driver installation/removal has been tested with a simulated backend, not a physical GPU replacement. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V041-RESULTS.md) · [Code signing policy](docs/SIGNING.md).
+> **Experimental preview · Windows 10/11 x64.** Driver installation/removal has been tested with a simulated backend, not a physical GPU replacement. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V042-RESULTS.md) · [Code signing policy](docs/SIGNING.md).
 
 ![Actual Swap interface in demo mode](.github/media/app-dark.png)
 
@@ -18,13 +18,13 @@ With the new card connected, **Install and clean** finds a matching Display driv
 | Resume when Windows requires a restart | Signed INF library and compatible backup restore | Hardware Direct3D probe, resolution and Hz |
 | Stop on uncertainty; preserve present GPUs | Local history and support reports | Graphics incidents and before/after comparison |
 
-The cleanup disclosure shows which packages are eligible and why the others are retained. Automatic transition backups now receive the same integrity checks before installation and cleanup. [Critical code review](docs/REVIEW-041.md).
+The cleanup disclosure shows which packages are eligible and why the others are retained. Automatic transition backups now receive the same integrity checks before installation and cleanup. [Critical code review](docs/REVIEW-042.md).
 
 Independent backup works without changing drivers. It checks altered, missing or added files before restoration; Windows signature checks still apply. Checksums detect changes, not a party replacing both files and manifest. [Community requests](docs/COMMUNITY.md).
 
 ## Download and open
 
-1. Download **[Swap.exe](https://github.com/zKraic/Swap/releases/download/v0.4.1-preview/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.4.1-preview/Swap.exe.sha256).
+1. Download **[Swap.exe](https://github.com/zKraic/Swap/releases/download/v0.4.2-preview/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.4.2-preview/Swap.exe.sha256).
 2. Open it and accept Windows administrator permissions. No Swap installer, ZIP or separate .NET installation.
 3. Review the detected card and choose an operation. Diagnostics need no reboot. Windows may require one after a driver change; Swap saves the session and preserves pending packages.
 
@@ -60,3 +60,5 @@ Build runs logic tests and creates the single EXE plus checksum. [Contribute](CO
 Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Distributed modifications must provide corresponding source under the GPL and retain required notices. Commercial reuse is allowed; impersonation or presenting a fork as official is not authorized by the [brand policy](TRADEMARKS.md). Official downloads remain free, without ads or subscriptions.
 
 Official repository: **[zKraic/Swap](https://github.com/zKraic/Swap)**. NVIDIA, AMD, Intel and Microsoft do not sponsor or certify Swap. Their drivers are not bundled. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Privacy](docs/PRIVACY.md) · [Code signing policy](docs/SIGNING.md).
+
+0.4.2 repeats hardware graphics verification after cleanup and saves a preparation result in the session. Diagnostic exports show remaining prerequisites and reasons for preserving packages. [Community and hardware results](docs/COMMUNITY.md) · [Launch demonstration](https://www.tiktok.com/@kraicdev/video/7695648273075375380).

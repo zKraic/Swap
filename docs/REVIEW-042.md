@@ -8,7 +8,7 @@ The review found that successful cleanup did not repeat the hardware Direct3D ch
 
 The installation workflow also repeats the planner's environment gates before every deletion and at completion. A remote tool or unsafe environment appearing during the operation cannot silently pass the initial preflight.
 
-Eight new regression cases cover receipts in all three paths, three final Direct3D failures, package arrival, remote-session drift before deletion/at completion and incomplete preparation prerequisites. Local logic checks: 138/138; warnings-as-errors WPF build passed. Exact public CI binary and isolated VM evidence will be linked in the version's validation record before a release is published.
+The WPF audit also checks that a backup-only demo with a basic Display driver reports preparation as incomplete. Eight new regression cases cover receipts in all three paths, three final Direct3D failures, package arrival, remote-session drift before deletion/at completion and incomplete preparation prerequisites. Local logic checks: 138/138; warnings-as-errors WPF build passed. Exact public CI binary and isolated VM evidence are recorded in the version's linked validation record. A release requires that record to match the tested bytes.
 
 This does not remove every file associated with a former vendor. Shared components, current-brand recovery drivers, present GPUs, OEM/hybrid dependencies, HDMI audio, chipset, services and vendor applications are intentionally preserved. Full manufacturer suites, physical GPU replacements and games require separate validation. Windows may require a driver restart; Swap itself remains a portable EXE.
 
