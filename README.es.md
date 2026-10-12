@@ -24,4 +24,4 @@ Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Las modificacione
 
 La vista de limpieza muestra qué paquetes puede retirar y por qué conserva los demás. Los respaldos del cambio automático se verifican antes de instalar, limpiar y continuar tras un reinicio. [Revisión crítica del código](docs/REVIEW-042.md).
 
-La 0.4.2 repite la verificación gráfica al terminar y guarda un resultado de preparación en la sesión. El informe indica requisitos pendientes y motivos para conservar paquetes. [Comunidad y pruebas de hardware](docs/COMMUNITY.md) · [Vídeo del flujo](https://www.tiktok.com/@kraicdev/video/7695697020127956244).
+La 0.4.2 repite la verificación gráfica al terminar y guarda un resultado de preparación en la sesión. El informe indica requisitos pendientes y motivos para conservar paquetes. [Comunidad y pruebas de hardware](docs/COMMUNITY.md) · [Vídeo del flujo](https://www.tiktok.com/@kraicdev/video/7695845302019869972).
