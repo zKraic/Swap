@@ -6,6 +6,8 @@
 
 **Versión experimental 0.4.2.** La instalación y retirada se probaron con un backend simulado. Falta validar un cambio físico de tarjeta; la firma depende de aprobación externa. [Resultados](docs/validation/V042-RESULTS.md).
 
+![Interfaz real de Swap en modo demo](.github/media/app-dark.png)
+
 Con la nueva tarjeta conectada, **Instalar y limpiar** busca un driver de pantalla compatible en Windows Update, lo descarga, respalda los paquetes actuales, instala y verifica el driver activo firmado y Direct3D en hardware. Solo después retira paquetes Display sin uso de marcas ausentes. Conserva GPU presentes, integradas y configuraciones híbridas.
 
 **Nuevo: Crear respaldo** exporta los drivers gráficos sin modificarlos. Comprueba archivos alterados, añadidos o ausentes antes de restaurar. Incluye biblioteca de INF firmados, diagnóstico de GPU/pantallas/Hz, eventos gráficos y comparación antes/después.

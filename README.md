@@ -6,7 +6,7 @@
 
 > **Experimental preview · Windows 10/11 x64.** Driver installation/removal has been tested with a simulated backend, not a physical GPU replacement. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V042-RESULTS.md) · [Code signing policy](docs/SIGNING.md).
 
-![Actual Swap interface in demo mode](.github/media/app-dark.png)
+![Actual Swap interface in demo mode](.github/media/app-dark-en.png)
 
 ## Driver transition
 
