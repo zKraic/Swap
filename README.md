@@ -61,4 +61,4 @@ Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Distributed modif
 
 Official repository: **[zKraic/Swap](https://github.com/zKraic/Swap)**. NVIDIA, AMD, Intel and Microsoft do not sponsor or certify Swap. Their drivers are not bundled. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Privacy](docs/PRIVACY.md) · [Code signing policy](docs/SIGNING.md).
 
-0.4.2 repeats hardware graphics verification after cleanup and saves a preparation result in the session. Diagnostic exports show remaining prerequisites and reasons for preserving packages. [Community and hardware results](docs/COMMUNITY.md) · [Launch demonstration](https://www.tiktok.com/@kraicdev/video/7695648273075375380).
+0.4.2 repeats hardware graphics verification after cleanup and saves a preparation result in the session. Diagnostic exports show remaining prerequisites and reasons for preserving packages. [Community and hardware results](docs/COMMUNITY.md) · [Launch demonstration](https://www.tiktok.com/@kraicdev/video/7695671373347245313).
