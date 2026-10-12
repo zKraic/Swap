@@ -59,6 +59,13 @@ public partial class MainWindow
             if(cleanupIssues.Count>0 || !CleanupText.Text.Contains("oem")) throw new InvalidOperationException("Cleanup preview layout or inventory failed.");
             Capture(Path.Combine(output,"cleanup-preview.png")); CleanupPreview.IsExpanded = false;
             results.Add(new { scenario="cleanup-preview-demo",passed=true });
+            populating=true; GpuBox.SelectedItem=null; populating=false;
+            platform = new DemoPlatform { ExtraAdapters = [new("Other basic GPU",@"PCI\VEN_8086&DEV_1234\EXTRA",Vendor.Intel,"display.inf","1",0,true)] };
+            await Guard(AnalyzeAsync);
+            if(TargetAdapter is not null || RunButton.IsEnabled || GpuName.Text!=T("selectGpu")) throw new InvalidOperationException("Ambiguous GPUs were automatically selected.");
+            GpuBox.SelectedItem=snapshot!.Adapters[0]; UpdateButtons();
+            if(!RunButton.IsEnabled || !snapshot.Adapters[1].SelectionLabel.Contains("DEV_1234")) throw new InvalidOperationException("Explicit GPU selection or basic-adapter identification failed.");
+            results.Add(new { scenario="explicit-ambiguous-gpu-selection-demo",passed=true });
             foreach (var vendor in new[] { Vendor.Amd, Vendor.Nvidia, Vendor.Intel })
             {
                 platform = new DemoPlatform { Target = vendor }; await Guard(() => AutomaticAsync(false));

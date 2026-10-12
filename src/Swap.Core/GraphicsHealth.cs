@@ -22,10 +22,10 @@ public static class GraphicsHealth
         var probes = diagnostics.Probes.Where(p => p.Hardware && Vendors.Matches(p.HardwareId, adapter.Id)).ToArray();
         // A PCI model is not an instance identity. Identical cards cannot be certified individually this way.
         items.Add(probes.Length != 1 ? new("direct3dUnknown", "") : probes[0].Direct3D ? new("direct3dOk", $"0x{probes[0].FeatureLevel:X}") : new("direct3dFailed", probes[0].Error, true));
-        if (!diagnostics.DisplaysComplete) items.Add(new("displayUnknown", ""));
+        if (!diagnostics.DisplaysComplete || probes.Length > 1) items.Add(new("displayUnknown", ""));
         else
         {
-            var matching = diagnostics.Displays.Where(d => d.AdapterId.Equals(adapter.Id, StringComparison.OrdinalIgnoreCase)).ToArray();
+            var matching = diagnostics.Displays.Where(d => Vendors.Matches(d.AdapterId, adapter.Id)).ToArray();
             items.Add(new(matching.Length == 0 ? "noDirectDisplay" : "displayConnected", matching.Length.ToString()));
             foreach (var display in diagnostics.Displays.Where(d => d.Hz > 1 && d.MaximumHz > d.Hz + 1))
                 items.Add(new("refreshAvailable", $"{display.Name}: {display.Hz} → {display.MaximumHz} Hz"));

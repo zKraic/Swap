@@ -4,6 +4,7 @@ namespace Swap.Windows;
 public sealed class DemoPlatform : IPlatform
 {
     public Vendor Target { get; set; } = Vendor.Amd;
+    public IReadOnlyList<Adapter> ExtraAdapters { get; set; } = [];
     private bool installed;
     private bool deleted;
     private Vendor Source => Target == Vendor.Amd ? Vendor.Nvidia : Vendor.Amd;
@@ -11,7 +12,7 @@ public sealed class DemoPlatform : IPlatform
     public Task<Snapshot> ScanAsync() => Task.FromResult(new Snapshot("Windows 11 · 24H2", "DEMO", true, false, false, false,
         80L * 1024 * 1024 * 1024,
         [new(Target == Vendor.Amd ? "AMD Radeon RX 7800 XT" : Target == Vendor.Intel ? "Intel Arc A770" : "NVIDIA GeForce RTX 4070", Hardware + @"\DEMO", Target,
-            installed ? "oem99.inf" : "basicdisplay.inf", installed ? "32.0.1.100" : "10.0.1.0", 0, true)],
+            installed ? "oem99.inf" : "basicdisplay.inf", installed ? "32.0.1.100" : "10.0.1.0", 0, true), ..ExtraAdapters],
         deleted ? [] : [new("oem42.inf", Source == Vendor.Nvidia ? "NVIDIA" : "Advanced Micro Devices, Inc.", Planner.DisplayGuid, "31.0.1.0", false)], true,
         []));
     public Task<Package> InspectAsync(string path, Vendor target) => Task.FromResult(new Package("demo.inf", target, "32.0.1.100",

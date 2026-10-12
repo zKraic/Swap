@@ -61,7 +61,7 @@ try {
     Check 'Guest active display driver unchanged' (($displayBefore | ConvertTo-Json -Depth 4 -Compress) -eq ($displayAfter | ConvertTo-Json -Depth 4 -Compress))
     Check 'Guest display driver store unchanged' (($storeBefore | ConvertTo-Json -Depth 4 -Compress) -eq ($storeAfter | ConvertTo-Json -Depth 4 -Compress))
     $completed = $true
-    Save-GuestStatus 'completed' 'Core, real guest inventory, portable runtime and 128 rendered UI cases completed.'
+    Save-GuestStatus 'completed' 'Core, real guest inventory, portable runtime and 129 rendered UI cases completed.'
 } catch {
     if (Test-Path -LiteralPath C:/SwapResults) { Save-GuestStatus 'failed' $_.Exception.ToString() }
     throw

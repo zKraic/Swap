@@ -46,7 +46,24 @@ public sealed partial class WindowsPlatform : IPlatform
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Swap.Windows.Scripts." + name + ".ps1")!;
         using var reader = new StreamReader(stream); return reader.ReadToEnd();
     }
-    public async Task<Snapshot> ScanAsync() => JsonSerializer.Deserialize<Snapshot>(await PowerShellAsync(Script("Scan"))) ?? throw new IOException("Inventario vacío.");
+    public static bool IsKnownRemoteTool(string name) => name.StartsWith("TeamViewer", StringComparison.OrdinalIgnoreCase) ||
+        new[] { "AnyDesk", "rustdesk", "remoting_host", "parsecd" }.Contains(name, StringComparer.OrdinalIgnoreCase);
+    public async Task<Snapshot> ScanAsync()
+    {
+        var snapshot = JsonSerializer.Deserialize<Snapshot>(await PowerShellAsync(Script("Scan"))) ?? throw new IOException("Inventario vacío.");
+        var processes = Process.GetProcesses();
+        try
+        {
+            var remote = false;
+            foreach (var process in processes)
+            {
+                try { remote |= IsKnownRemoteTool(process.ProcessName); }
+                catch (InvalidOperationException) { /* An exited process is no longer a remote-control tool. */ }
+            }
+            return snapshot with { Remote = snapshot.Remote || remote };
+        }
+        finally { foreach (var process in processes) process.Dispose(); }
+    }
     public async Task<bool> VerifyGraphicsAsync(Adapter adapter)
     {
         var diagnostics = await GraphicsInspector.ReadAsync();

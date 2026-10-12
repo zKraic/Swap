@@ -1,7 +1,22 @@
 namespace Swap.Core;
 
 public enum Vendor { Unknown, Nvidia, Amd, Intel }
-public sealed record Adapter(string Name, string Id, Vendor Vendor, string Inf, string Version, int Problem, bool Signed);
+public sealed record Adapter(string Name, string Id, Vendor Vendor, string Inf, string Version, int Problem, bool Signed)
+{
+    public string SelectionLabel => Planner.IsOem(Inf) ? Name : Name + " · " + (Vendor switch { Vendor.Nvidia => "NVIDIA", Vendor.Amd => "AMD", Vendor.Intel => "Intel", _ => "PCI" }) + " · " + (Id.Split('&').FirstOrDefault(s => s.StartsWith("DEV_", StringComparison.OrdinalIgnoreCase))?.Split('\\')[0] ?? "PCI");
+}
+
+public static class TargetChoice
+{
+    public static Adapter? Select(IEnumerable<Adapter> adapters, string? selectedId)
+    {
+        var known = adapters.Where(a => a.Vendor is Vendor.Nvidia or Vendor.Amd or Vendor.Intel).ToArray();
+        var selected = known.SingleOrDefault(a => a.Id == selectedId);
+        if (selected is not null) return selected;
+        var unconfigured = known.Where(a => a.Problem != 0 || !a.Signed || !Planner.IsOem(a.Inf)).ToArray();
+        return unconfigured.Length == 1 ? unconfigured[0] : known.Length == 1 ? known[0] : null;
+    }
+}
 public sealed record Driver(string Inf, string Provider, string ClassGuid, string Version, bool BootCritical);
 public sealed record Snapshot(string Os, string MachineId, bool Admin, bool PendingReboot, bool Remote, bool Laptop,
     long FreeBytes, IReadOnlyList<Adapter> Adapters, IReadOnlyList<Driver> Drivers, bool Complete, IReadOnlyList<string> Warnings, string BootId = "");

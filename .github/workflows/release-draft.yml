@@ -34,7 +34,7 @@ jobs:
           if($LASTEXITCODE -ne 0){throw 'Artifact download failed'}
           $exe=Get-Item release-input/dist/Swap.exe
           $report=Get-Content release-input/artifacts/test-results.json -Raw | ConvertFrom-Json
-          if($report.failed -ne 0 -or $report.passed -ne 126){throw 'Unexpected test report'}
+          if($report.failed -ne 0 -or $report.passed -ne 130){throw 'Unexpected test report'}
           $hash=(Get-FileHash $exe.FullName -Algorithm SHA256).Hash
           $expected=(Get-Content release-input/dist/Swap.exe.sha256 -Raw).Trim().Split(' ')[0]
           if($hash -ne $expected){throw 'Artifact checksum mismatch'}
@@ -43,7 +43,7 @@ jobs:
           $vmValidation='pending; draft must not be published until the exact EXE passes isolated Windows checks'
           $validation=Get-Content docs/validation/v041-result.json -Raw | ConvertFrom-Json
           if($validation.appSha256 -eq $hash -and $validation.isolatedWindows.completed -eq $true){
-            if($validation.sourceCommit -ne $run.head_sha -or $validation.isolatedWindows.corePassed -ne 129 -or $validation.isolatedWindows.uiPassed -ne 128 -or $validation.isolatedWindows.checksPassed -ne 12 -or $validation.isolatedWindows.captures -ne 34){throw 'Exact validation provenance mismatch'}
+            if($validation.sourceCommit -ne $run.head_sha -or $validation.isolatedWindows.corePassed -ne 133 -or $validation.isolatedWindows.uiPassed -ne 129 -or $validation.isolatedWindows.checksPassed -ne 12 -or $validation.isolatedWindows.captures -ne 34){throw 'Exact validation provenance mismatch'}
             $vmValidation=$validation.isolatedWindows
           }
           Copy-Item docs/validation/v041-result.json release-input/validation.json

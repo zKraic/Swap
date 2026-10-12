@@ -14,6 +14,11 @@ Swap is used **after the new graphics card is physically connected**. Hardware c
 | Users could not easily see the cleanup scope | The Home disclosure lists eligible packages and why others are retained. Diagnostic export includes the same decisions. |
 | Driver verification covered signature and PnP without requiring hardware Direct3D | A target-associated Direct3D verification now gates cleanup after installation, maintenance and continuation. Unavailable or ambiguous hardware verification preserves old packages. |
 | Public introduction did not emphasize when to run Swap | App and project descriptions now state that the new card must already be connected. |
+| Window footer had a fixed old version and no preview marker | The footer reads executable metadata and shows experimental status in every language; the UI audit checks it. |
+| Native display IDs can be a PCI hardware prefix, while PnP IDs include an instance suffix | Display association now uses bounded, case-insensitive hardware matching. Identical PCI models remain unverified instead of receiving guessed routing. |
+| Multiple candidate GPUs could be selected arbitrarily | A single unconfigured card is preferred; ambiguous inventories require explicit selection. Basic adapters include their vendor and PCI device code. |
+| Demo without a selected GPU could fall through to native diagnostics | Empty demo selection now remains synthetic. |
+| Remote checks covered the app's RDP session only | Running TeamViewer, AnyDesk, RustDesk, Chrome Remote Desktop or Parsec tools conservatively block driver changes. No remote tool is stopped. This detects known tools, even when idle, not every possible remote session. |
 
 ## Automation, without overstating the scope
 
@@ -29,7 +34,7 @@ Checksum manifests detect missing or changed files, not an attacker replacing bo
 
 ## Regression evidence
 
-Eleven new behavioral cases exercise sealed transition backups, corruption before installation and cleanup, maintenance corruption, reboot-time tampering/missing manifests, existing-session protection, INF metadata drift and cleanup explanations. The WPF audit additionally opens the cleanup disclosure. Final binary evidence is recorded separately in [0.4.1 validation](validation/V041-RESULTS.md).
+Fifteen new behavioral cases exercise sealed transition backups, corruption before installation and cleanup, maintenance corruption, reboot-time tampering/missing manifests, existing-session protection, INF metadata drift, cleanup explanations, Direct3D gates, display association, GPU selection and known remote-tool names. The WPF audit additionally opens the cleanup disclosure, checks explicit GPU selection and verifies the footer against executable metadata. Final binary evidence is recorded separately in [0.4.1 validation](validation/V041-RESULTS.md).
 
 ## Distribution and community
 

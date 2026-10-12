@@ -16,7 +16,7 @@ public partial class MainWindow
     private async Task InspectGraphicsAsync()
     {
         if(snapshot is null)return;
-        graphicsDiagnostics=Demo && TargetAdapter is {} adapter ? GraphicsInspector.Demo(adapter) : await GraphicsInspector.ReadAsync();
+        graphicsDiagnostics=Demo ? TargetAdapter is {} adapter ? GraphicsInspector.Demo(adapter) : new GraphicsDiagnostics(DateTimeOffset.UtcNow,[],[],[],true,true,[]) : await GraphicsInspector.ReadAsync();
         checkpoint=null;
         if(File.Exists(CheckpointPath))
         {
@@ -35,8 +35,8 @@ public partial class MainWindow
     {
         if(snapshot is null || graphicsDiagnostics is null)return;
         var findings=GraphicsHealth.Evaluate(TargetAdapter,graphicsDiagnostics);
-        HealthText.Text=string.Join("\n",findings.Select(Describe));
-        GpuHealthSummary.Text=T(TargetAdapter?.Problem==0?"pnpOk":"pnpError")+(TargetAdapter?.Problem is >0 ? " "+TargetAdapter.Problem:"");
+        HealthText.Text=TargetAdapter is null && snapshot.Adapters.Count>1 ? T("selectGpu") : string.Join("\n",findings.Select(Describe));
+        GpuHealthSummary.Text=TargetAdapter is null ? T(snapshot.Adapters.Count>1?"selectGpu":"noGpu") : T(TargetAdapter.Problem==0?"pnpOk":"pnpError")+(TargetAdapter.Problem is >0 ? " "+TargetAdapter.Problem:"");
         DisplayText.Text=graphicsDiagnostics.Displays.Count==0?T("displayUnknown"):string.Join("\n",graphicsDiagnostics.Displays.Select(d=>$"{d.Name} · {d.Width}×{d.Height} · {(d.Hz>1?d.Hz+" Hz":T("unknown"))}"+(d.MaximumHz>d.Hz+1 && d.Hz>1?$" · {T("maximumHz")} {d.MaximumHz} Hz":"")));
         EventText.Text=!graphicsDiagnostics.EventsComplete?T("eventsUnknown"):graphicsDiagnostics.Incidents.Count==0?T("noDisplayErrors"):string.Join("\n",graphicsDiagnostics.Incidents.Take(8).Select(e=>$"{e.Time.LocalDateTime:g} · {e.Kind} · {e.Provider} ({e.Id})"));
         if(checkpoint is null)ComparisonText.Text=T("checkpointNone");

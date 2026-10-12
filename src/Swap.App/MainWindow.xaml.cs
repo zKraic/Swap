@@ -92,15 +92,15 @@ public partial class MainWindow : Window
         Status.Text = T("scanning"); var selectedId = TargetAdapter?.Id; snapshot = await platform.ScanAsync();
         var adapters = snapshot.Adapters.Where(a => a.Vendor is Vendor.Amd or Vendor.Nvidia or Vendor.Intel)
             .OrderBy(a => a is { Problem: 0, Signed: true } && Planner.IsOem(a.Inf)).ToArray();
-        populating = true; GpuBox.ItemsSource = adapters; GpuBox.SelectedItem = adapters.FirstOrDefault(a => a.Id == selectedId) ?? adapters.FirstOrDefault(); populating = false;
+        populating = true; GpuBox.ItemsSource = adapters; GpuBox.SelectedItem = TargetChoice.Select(adapters, selectedId); populating = false;
         GpuBox.Visibility = adapters.Length > 1 ? Visibility.Visible : Visibility.Collapsed;
-        PaintSnapshot(); await InspectGraphicsAsync(); RefreshFiles(); Status.Text = T("ready"); UpdateButtons();
+        PaintSnapshot(); await InspectGraphicsAsync(); RefreshFiles(); Status.Text = T(TargetAdapter is not null ? "ready" : adapters.Length > 1 ? "selectGpu" : "noGpu"); UpdateButtons();
     }
     private void PaintSnapshot()
     {
         if (snapshot is null) return; var a = TargetAdapter;
         VersionLabel.Text = "KraicDev · v" + ApplicationVersion + " · " + T("preview");
-        GpuName.Text = a?.Name ?? T("noGpu"); GpuVendor.Text = a is null ? "NVIDIA · AMD · Intel" : VendorName(a.Vendor);
+        GpuName.Text = a?.Name ?? T(snapshot.Adapters.Count(x => x.Vendor is Vendor.Amd or Vendor.Nvidia or Vendor.Intel) > 1 ? "selectGpu" : "noGpu"); GpuVendor.Text = a is null ? "NVIDIA · AMD · Intel" : VendorName(a.Vendor);
         DriverVersion.Text = a?.Version is { Length: > 0 } version ? version : "—";
         var healthy = a is { Problem: 0, Signed: true } && Planner.IsOem(a.Inf);
         DriverStatus.Text = T(healthy ? "signed" : "attention"); DriverStatus.SetResourceReference(TextBlock.ForegroundProperty, healthy ? "Good" : "Warning");
@@ -112,8 +112,8 @@ public partial class MainWindow : Window
         HealthText.Text = string.Join("\n\n", snapshot.Adapters.Select(x => $"{x.Name}\n{x.Version} · {x.Inf}\n{T(x.Signed ? "signed" : "unsigned")} · {(x.Problem == 0 ? T("healthy") : "PnP " + x.Problem)}")) + "\n\n" + T(snapshot.Admin ? "admin" : "readOnly") + (snapshot.PendingReboot ? " · " + T("reboot") : "");
         PaintGraphics();
         var source = PreviousVendor(snapshot);
-        CleanupText.Text = string.Join("\n", snapshot.Drivers.Select(d => d.Inf + " · " + d.Provider + " · " + T(Planner.CleanupReason(snapshot, d, source, Target, SourceBox.SelectedIndex == 0))));
-        CleanupPreview.Header = T("cleanupPreview") + " · " + (snapshot.Complete ? snapshot.Drivers.Count(d => Planner.EligibleCleanup(snapshot, d, source, Target, SourceBox.SelectedIndex == 0)).ToString() : "—");
+        CleanupText.Text = TargetAdapter is null ? T("selectGpu") : string.Join("\n", snapshot.Drivers.Select(d => d.Inf + " · " + d.Provider + " · " + T(Planner.CleanupReason(snapshot, d, source, Target, SourceBox.SelectedIndex == 0))));
+        CleanupPreview.Header = T("cleanupPreview") + " · " + (snapshot.Complete && TargetAdapter is not null ? snapshot.Drivers.Count(d => Planner.EligibleCleanup(snapshot, d, source, Target, SourceBox.SelectedIndex == 0)).ToString() : "—");
     }
     private void UpdateButtons()
     {
@@ -403,7 +403,7 @@ public partial class MainWindow : Window
         await AnalyzeAsync(); var current=snapshot!;
         var report = new { app = "Swap", author = "KraicDev", version = ApplicationVersion, generated = DateTimeOffset.Now, simulated = Demo, current.Os, current.Admin, current.Complete, current.PendingReboot, current.Laptop, current.FreeBytes,
             adapters = current.Adapters.Select(a => new { a.Name, a.Vendor, a.Version, a.Inf, a.Problem, a.Signed }), current.Drivers,
-            cleanup = current.Drivers.Select(d => new { d.Inf, d.Provider, reason = Planner.CleanupReason(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0), eligible = Planner.EligibleCleanup(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0) }),
+            cleanup = current.Drivers.Select(d => new { d.Inf, d.Provider, reason = TargetAdapter is null ? "selectGpu" : Planner.CleanupReason(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0), eligible = TargetAdapter is not null && Planner.EligibleCleanup(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0) }),
             displays=graphicsDiagnostics?.Displays.Select(d=>new {d.Name,d.Width,d.Height,d.Hz,d.MaximumHz}),
             probes=graphicsDiagnostics?.Probes.Select(p=>new {p.Name,p.DedicatedBytes,p.Hardware,p.Direct3D,p.FeatureLevel,p.Error}),
             incidents=graphicsDiagnostics?.Incidents, graphicsDiagnostics?.DisplaysComplete, graphicsDiagnostics?.EventsComplete,
