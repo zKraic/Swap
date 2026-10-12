@@ -85,7 +85,7 @@ public partial class MainWindow
             {
                 var exported=report.RootElement;
                 var expectedVersion=System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3);
-                if(exported.GetProperty("version").GetString()!=expectedVersion || exported.GetProperty("author").GetString()!="KraicDev" || !exported.GetProperty("simulated").GetBoolean() || exported.GetProperty("adapters").GetArrayLength()!=snapshot!.Adapters.Count)
+                if(exported.GetProperty("version").GetString()!=expectedVersion || !VersionLabel.Text.Contains(expectedVersion) || !VersionLabel.Text.Contains(T("preview")) || exported.GetProperty("author").GetString()!="KraicDev" || !exported.GetProperty("simulated").GetBoolean() || exported.GetProperty("adapters").GetArrayLength()!=snapshot!.Adapters.Count)
                     throw new InvalidOperationException("Exported diagnostic report metadata or inventory failed.");
             }
             results.Add(new { scenario="diagnostic-report-export-demo",passed=true });
