@@ -78,4 +78,4 @@ Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Distributed modif
 
 Official repository: **[zKraic/Swap](https://github.com/zKraic/Swap)**. NVIDIA, AMD, Intel and Microsoft do not sponsor or certify Swap. Their drivers are not bundled. Display Driver Uninstaller is an independent project and is not used or included. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Privacy](docs/PRIVACY.md) · [Code signing policy](docs/SIGNING.md).
 
-0.5.0 adds deep cleanup, fixes cleanup after a real card removal, and adds PCIe-lane and refresh-rate checks. [Changelog](CHANGELOG.md) · [Community and hardware results](docs/COMMUNITY.md) · [Recorded UI walkthrough](https://www.tiktok.com/@kraicdev/video/7695877540350594324).
+0.5.0 adds deep cleanup, fixes cleanup after a real card removal, and adds PCIe-lane and refresh-rate checks. [Changelog](CHANGELOG.md) · [Community and hardware results](docs/COMMUNITY.md).

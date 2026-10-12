@@ -40,3 +40,16 @@ scripts/vm/RecoverGuestHive.py
 *.iso
 autounattend.xml
 .env*
+
+# Audiovisual production stays outside the application repository.
+video-*/
+video-production/
+*.mp4
+*.webm
+*.mov
+*.avi
+*.mp3
+*.m4a
+*.wav
+*.srt
+*.ass

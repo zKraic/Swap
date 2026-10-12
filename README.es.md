@@ -41,4 +41,4 @@ Código en `main`. [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · 
 
 Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Las modificaciones distribuidas deben conservar la GPL, avisos y código correspondiente. Permite usos comerciales; la [política de marca](TRADEMARKS.md) no autoriza suplantar al autor ni presentar un fork como oficial. Las descargas oficiales son gratuitas. Display Driver Uninstaller es un proyecto independiente y no se usa ni se incluye.
 
-[Revisión crítica de la 0.5.0](docs/REVIEW-050.md) · [Cambios](CHANGELOG.md) · [Comunidad y pruebas de hardware](docs/COMMUNITY.md) · [Vídeo del flujo](https://www.tiktok.com/@kraicdev/video/7695876502751055124).
+[Revisión crítica de la 0.5.0](docs/REVIEW-050.md) · [Cambios](CHANGELOG.md) · [Comunidad y pruebas de hardware](docs/COMMUNITY.md).
