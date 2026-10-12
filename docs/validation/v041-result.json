@@ -1,14 +1,39 @@
 {
   "author": "KraicDev",
   "version": "0.4.1-preview",
-  "releaseStatus": "Validation pending; do not publish executable",
-  "appSha256": "pending",
-  "sourceCommit": "pending",
-  "ci": { "passed": 130, "failed": 0, "run": "pending" },
-  "isolatedWindows": { "completed": false },
+  "sourceCommit": "7a19a79c3a4bf1e8edf8ed235a2bcef0b19ad696",
+  "appSha256": "F6058C720201FE1146827ED5871EB5720213F616F235B55F2C14D9FA2F3337AC",
+  "bytes": 65652352,
+  "releaseStatus": "Experimental preview; exact CI executable passed isolated Windows validation",
+  "ci": {
+    "passed": 130,
+    "run": "https://github.com/zKraic/Swap/actions/runs/38192262072",
+    "failed": 0
+  },
+  "isolatedWindows": {
+    "completed": true,
+    "status": "passed",
+    "corePassed": 133,
+    "coreFailed": 0,
+    "uiPassed": 129,
+    "uiFailed": 0,
+    "checksPassed": 12,
+    "captures": 34,
+    "initialWindowFits": true,
+    "os": "Microsoft Windows 10 Enterprise LTSC Evaluation",
+    "osVersion": "10.0.19044",
+    "network": false,
+    "physicalGpuPassthrough": false,
+    "preinstalledDotnet": false,
+    "hostDisplayUnchanged": true,
+    "hostRestart": false,
+    "exportMethod": "Offline read after normal guest shutdown"
+  },
   "authenticode": "NotSigned",
   "physicalGpuInstallationRemoval": "not-tested",
   "realWindowsUpdateDownload": "not-tested",
   "interactivePostRestartContinuation": "not-tested",
-  "games": "not-tested"
+  "windows11Hardware": "not-tested",
+  "games": "not-tested",
+  "scope": "Actual self-contained WPF execution and native read-only Windows observations; driver transitions use simulated adapters. No physical GPU, cable, power, FPS or game certification."
 }
