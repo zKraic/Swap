@@ -1,16 +1,16 @@
 <p align="center"><img src=".github/media/banner.svg" alt="Swap — GPU driver utility by KraicDev" width="100%"></p>
 
-<p align="center"><a href="https://zkraic.github.io/Swap/">Website</a> · <a href="https://github.com/zKraic/Swap/releases/tag/v0.4.0-preview">Download EXE</a> · <a href="README.es.md">Español</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
+<p align="center"><a href="https://zkraic.github.io/Swap/">Website</a> · <a href="https://github.com/zKraic/Swap/releases/tag/v0.4.1-preview">Download EXE</a> · <a href="README.es.md">Español</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
 
 **Prepare Windows after connecting a graphics card of another brand.** NVIDIA, AMD and Intel Arc. Free, open source, no account or subscription.
 
-> **Experimental preview · Windows 10/11 x64.** Driver installation/removal has been tested with a simulated backend, not a physical GPU replacement. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V04-RESULTS.md) · [Code signing policy](docs/SIGNING.md).
+> **Experimental preview · Windows 10/11 x64.** Driver installation/removal has been tested with a simulated backend, not a physical GPU replacement. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V041-RESULTS.md) · [Code signing policy](docs/SIGNING.md).
 
 ![Actual Swap interface in demo mode](.github/media/app-dark.png)
 
-## A complete workflow
+## Driver transition
 
-With the new card connected, **Install and clean** finds a matching Display driver through Windows Update, downloads it, backs up existing graphics packages, installs it and verifies the active signed driver. Only then does it clean unused Display packages from absent GPU brands. Present GPUs, integrated graphics and hybrid systems are preserved.
+With the new card connected, **Install and clean** finds a matching Display driver through Windows Update, downloads it, backs up existing graphics packages, installs it and verifies the active signed driver and hardware Direct3D. If several GPUs remain ambiguous, explicitly select the new card; Swap does not guess. Only then does it clean unused Display packages from absent GPU brands. Present GPUs, integrated graphics and hybrid systems are preserved.
 
 | Graphics | Recovery | Diagnostics |
 |---|---|---|
@@ -24,13 +24,13 @@ Independent backup works without changing drivers. It checks altered, missing or
 
 ## Download and open
 
-1. Download **[Swap.exe](https://github.com/zKraic/Swap/releases/download/v0.4.0-preview/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.4.0-preview/Swap.exe.sha256).
+1. Download **[Swap.exe](https://github.com/zKraic/Swap/releases/download/v0.4.1-preview/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.4.1-preview/Swap.exe.sha256).
 2. Open it and accept Windows administrator permissions. No Swap installer, ZIP or separate .NET installation.
 3. Review the detected card and choose an operation. Diagnostics need no reboot. Windows may require one after a driver change; Swap saves the session and preserves pending packages.
 
 Automatic mode requires internet, a working Windows Update service, PowerShell 5.1 and at least 4 GB free plus driver space. It respects existing policies. Catalog drivers may be older than manufacturer releases. It does not automatically install the full Adrenalin/NVIDIA suite, PhysX or optional vendor applications. No DDU, forced package removal, registry cleaning or game tweaks.
 
-Windows 7/8, x86 and ARM64 are not validated targets. Driver changes are blocked during remote sessions and pending Windows servicing restarts. Software inventory cannot certify GPU power, PCIe seating or every game.
+Windows 7/8, x86 and ARM64 are not validated targets. Driver changes are blocked in Windows RDP sessions, while a known remote-control tool is running (including idle TeamViewer services), and during pending Windows servicing restarts. Diagnostics and independent backup remain available. Software inventory cannot certify GPU power, PCIe seating or every game.
 
 ## Portable by default
 
