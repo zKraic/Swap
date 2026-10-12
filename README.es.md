@@ -1,6 +1,6 @@
 # Swap · KraicDev
 
-**Controladores gráficos para Windows, en un EXE portable.** NVIDIA, AMD e Intel Arc. Gratis, sin cuenta ni suscripción.
+**Prepara Windows después de conectar una gráfica de otra marca.** NVIDIA, AMD e Intel Arc. Gratis, sin cuenta ni suscripción.
 
 [Página](https://zkraic.github.io/Swap/) · [Descargar](https://github.com/zKraic/Swap/releases/tag/v0.4.0-preview) · [English](README.md)
 
@@ -19,3 +19,5 @@ Seis idiomas según el PC y temas claro/oscuro/sistema. Datos en `%LOCALAPPDATA%
 Código en `main`. [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · [Recuperación](docs/RECOVERY.md) · [Firma](docs/SIGNING.md).
 
 Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Las modificaciones distribuidas deben conservar la GPL, avisos y código correspondiente. Permite usos comerciales; la [política de marca](TRADEMARKS.md) no autoriza suplantar al autor ni presentar un fork como oficial. Las descargas oficiales son gratuitas.
+
+La vista de limpieza muestra qué paquetes puede retirar y por qué conserva los demás. Los respaldos del cambio automático se verifican antes de instalar, limpiar y continuar tras un reinicio. [Revisión crítica del código](docs/REVIEW-041.md).

@@ -12,8 +12,9 @@ public sealed class Maintenance(IPlatform platform)
             throw new InvalidOperationException("No hay un driver compatible en el catálogo y el driver activo necesita atención. No se modificó el equipo.");
         var proof = new Package("active", target, adapter.Version, [adapter.Id[..adapter.Id.LastIndexOf('\\')]], "active", true, false, true);
         var plan = Planner.Create(before, source, target, proof, adapter.Id, cleanupAllAbsent);
+        if (Directory.Exists(session)) throw new IOException("A new session directory is required.");
         Directory.CreateDirectory(session);
-        using var fileLock = new FileStream(Path.Combine(session, "session.lock"), FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+        using var fileLock = new FileStream(Path.Combine(session, "session.lock"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
         var messages = new List<string>();
         bool reboot = false;
         void Record(string message) { File.AppendAllText(Path.Combine(session, "journal.jsonl"), JsonSerializer.Serialize(new { time = DateTimeOffset.UtcNow, text = message }) + "\n"); messages.Add(message); log(message); }
@@ -21,13 +22,7 @@ public sealed class Maintenance(IPlatform platform)
         try
         {
             Save("before", before); Save("plan", plan); Save("state", new { phase = "backup", completed = false }); stage?.Invoke("backup");
-            foreach (var d in before.Drivers.Where(d => Planner.IsOem(d.Inf) && d.ClassGuid.Equals(Planner.DisplayGuid, StringComparison.OrdinalIgnoreCase)))
-            {
-                token.ThrowIfCancellationRequested();
-                var destination = Path.Combine(session, "backup", d.Inf); Directory.CreateDirectory(destination); Record("Respaldando " + d.Inf);
-                var export = await platform.ExportAsync(d.Inf, destination);
-                if (!export.Success || !Directory.EnumerateFiles(destination, "*.inf", SearchOption.AllDirectories).Any()) throw new IOException("Falló el respaldo; limpieza detenida.");
-            }
+            await SessionBackups.ExportAsync(platform, before, session, Record, token);
             Record(await platform.RestorePointAsync()); token.ThrowIfCancellationRequested(); stage?.Invoke("verify");
             async Task<Snapshot> Validate()
             {
@@ -38,11 +33,13 @@ public sealed class Maintenance(IPlatform platform)
                 if (!s.Adapters.Contains(adapter)) throw new InvalidOperationException("El driver activo cambió; vuelve a analizar.");
                 return s;
             }
-            await Validate(); Save("state", new { phase = "cleanup", completed = false }); stage?.Invoke("cleanup");
+            await Validate(); await SessionBackups.VerifyAsync(before, session, token);
+            Save("state", new { phase = "cleanup", completed = false }); stage?.Invoke("cleanup");
             foreach (var d in plan.Remove)
             {
                 token.ThrowIfCancellationRequested(); var current = await Validate();
                 if (!Planner.EligibleCleanup(current, d, source, target, cleanupAllAbsent) || !current.Drivers.Contains(d)) throw new InvalidOperationException("El inventario cambió; limpieza detenida.");
+                await BackupIntegrity.VerifyAsync(Path.Combine(session, "backup", d.Inf), token);
                 Record("Retirando paquete sin uso " + d.Inf); var deleted = await platform.DeleteAsync(d.Inf);
                 if (!deleted.Success) throw new IOException("La retirada necesita revisión.");
                 if (deleted.Code == 3010)
@@ -53,7 +50,7 @@ public sealed class Maintenance(IPlatform platform)
                 }
             }
             var final = await Validate(); Save("after", final);
-            if (plan.Remove.Any(d => final.Drivers.Contains(d))) throw new IOException("Windows no confirmó la retirada del paquete.");
+            if (plan.Remove.Any(d => final.Drivers.Any(x => x.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase)))) throw new IOException("Windows no confirmó la retirada del paquete.");
             Record("Driver activo firmado, sin error PnP. No hay nuevas ofertas compatibles en el catálogo consultado.");
             Save("state", new { phase = "complete", completed = true, installed = false }); return new(true, false, session, messages);
         }

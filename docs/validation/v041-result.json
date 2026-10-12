@@ -1,0 +1,14 @@
+{
+  "author": "KraicDev",
+  "version": "0.4.1-preview",
+  "releaseStatus": "Validation pending; do not publish executable",
+  "appSha256": "pending",
+  "sourceCommit": "pending",
+  "ci": { "passed": 123, "failed": 0, "run": "pending" },
+  "isolatedWindows": { "completed": false },
+  "authenticode": "NotSigned",
+  "physicalGpuInstallationRemoval": "not-tested",
+  "realWindowsUpdateDownload": "not-tested",
+  "interactivePostRestartContinuation": "not-tested",
+  "games": "not-tested"
+}

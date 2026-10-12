@@ -36,6 +36,7 @@ public sealed class Continuation(IPlatform platform)
             token.ThrowIfCancellationRequested(); stage?.Invoke("verify");
             var active=VerifiedTarget(plan,current) ?? throw new InvalidOperationException("El nuevo driver no está activo, firmado y verificado. No se limpia ningún paquete.");
             _ = Planner.Create(current,plan.Source,plan.Target,plan.Package,plan.TargetId,plan.CleanupAllAbsent);
+            await SessionBackups.VerifyAsync(plan.Before, session, token);
             async Task<Snapshot> Validate()
             {
                 var snapshot=await platform.ScanAsync();
@@ -50,7 +51,7 @@ public sealed class Continuation(IPlatform platform)
                 // The successful deletions before the restart need not be repeated.
                 if(!current.Drivers.Any(d=>d.Inf.Equals(driver.Inf,StringComparison.OrdinalIgnoreCase))) continue;
                 if(!current.Drivers.Contains(driver) || !Planner.EligibleCleanup(current,driver,plan.Source,plan.Target,plan.CleanupAllAbsent)) throw new InvalidOperationException("Un paquete antiguo cambió o volvió a estar en uso.");
-                if(!Directory.Exists(Path.Combine(session,"backup",driver.Inf)) || !Directory.EnumerateFiles(Path.Combine(session,"backup",driver.Inf),"*.inf",SearchOption.AllDirectories).Any()) throw new IOException("Falta el respaldo del paquete antiguo.");
+                await BackupIntegrity.VerifyAsync(Path.Combine(session,"backup",driver.Inf), token);
                 Record("Retirando paquete sin uso "+driver.Inf);
                 var result=await platform.DeleteAsync(driver.Inf); Record(result.Output);
                 if(!result.Success) throw new IOException("Windows no permitió retirar el paquete antiguo.");

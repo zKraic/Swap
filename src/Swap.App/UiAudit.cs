@@ -54,6 +54,11 @@ public partial class MainWindow
             preferences = new("es", "dark"); dark = preferences.Apply(); PopulatePreferences();
             Width = 1120; Height = 810; HomeNav.IsChecked = true;
             foreach (var page in new[] { HomePage, LibraryPage, RecoveryPage, DiagnosticsPage, SettingsPage }) page.Visibility = page == HomePage ? Visibility.Visible : Visibility.Collapsed;
+            PaintSnapshot(); CleanupPreview.IsExpanded = true; UpdateLayout();
+            var cleanupIssues = new List<string>(); InspectLayout(HomePage, cleanupIssues);
+            if(cleanupIssues.Count>0 || !CleanupText.Text.Contains("oem")) throw new InvalidOperationException("Cleanup preview layout or inventory failed.");
+            Capture(Path.Combine(output,"cleanup-preview.png")); CleanupPreview.IsExpanded = false;
+            results.Add(new { scenario="cleanup-preview-demo",passed=true });
             foreach (var vendor in new[] { Vendor.Amd, Vendor.Nvidia, Vendor.Intel })
             {
                 platform = new DemoPlatform { Target = vendor }; await Guard(() => AutomaticAsync(false));

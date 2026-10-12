@@ -8,6 +8,15 @@ public static class Localization
     public static string Language { get; private set; } = "en";
     // Each row has the key and all six translations. No partial-language fallback in the interface.
     private const string Catalog = """
+cleanupPreview|Paquetes antiguos que se pueden retirar|Old packages eligible for cleanup|Pacotes antigos elegíveis para remoção|Anciens paquets pouvant être retirés|Entfernbare alte Treiberpakete|Vecchi pacchetti rimovibili
+cleanupUnused|Sin uso; se retira después de verificar|Unused; removed after verification|Sem uso; removido após verificação|Inutilisé ; retrait après vérification|Ungenutzt; Entfernen nach Prüfung|Inutilizzato; rimozione dopo verifica
+cleanupOem|Conservado por compatibilidad OEM|Retained for OEM compatibility|Mantido por compatibilidade OEM|Conservé pour compatibilité OEM|Für OEM-Kompatibilität behalten|Conservato per compatibilità OEM
+cleanupProtected|Paquete protegido|Protected package|Pacote protegido|Paquet protégé|Geschütztes Paket|Pacchetto protetto
+cleanupUnknown|Fabricante sin verificar; conservado|Unverified provider; retained|Fabricante não verificado; mantido|Fabricant non vérifié ; conservé|Hersteller ungeprüft; behalten|Produttore non verificato; conservato
+cleanupActive|Driver en uso; conservado|Driver in use; retained|Driver em uso; mantido|Pilote utilisé ; conservé|Treiber in Verwendung; behalten|Driver in uso; conservato
+cleanupRecovery|Conservado para recuperación del destino|Retained for target recovery|Mantido para recuperação do destino|Conservé pour récupération du GPU cible|Für Wiederherstellung der Ziel-GPU behalten|Conservato per ripristino della GPU selezionata
+cleanupPresent|Otra GPU de esta marca sigue conectada|Another GPU of this brand is still present|Outra GPU desta marca está presente|Un autre GPU de cette marque est présent|Weitere GPU dieses Herstellers vorhanden|È presente un'altra GPU di questa marca
+cleanupSelection|Fuera de la marca anterior seleccionada|Outside the selected previous brand|Fora da marca anterior selecionada|Hors de la marque précédente sélectionnée|Außerhalb des gewählten vorherigen Herstellers|Non appartiene alla marca precedente selezionata
 backupCreate|Crear respaldo|Create backup|Criar backup|Créer une sauvegarde|Sicherung erstellen|Crea backup
 backupSaved|Respaldo creado y verificado. Los drivers no se modificaron.|Backup created and verified. Drivers were not changed.|Backup criado e verificado. Os drivers não foram alterados.|Sauvegarde créée et vérifiée. Les pilotes restent inchangés.|Sicherung erstellt und geprüft. Treiber wurden nicht geändert.|Backup creato e verificato. I driver non sono stati modificati.
 healthRecovery|Ver respaldos|View backups|Ver backups|Voir les sauvegardes|Sicherungen anzeigen|Apri backup
@@ -58,7 +67,7 @@ diagnostics|Diagnóstico|Diagnostics|Diagnóstico|Diagnostic|Diagnose|Diagnostic
 settings|Ajustes|Settings|Configurações|Paramètres|Einstellungen|Impostazioni
 portable|Portable · sin instalación|Portable · no setup|Portátil · sem instalação|Portable · sans installation|Portabel · ohne Setup|Portatile · senza installazione
 headline|Controladores gráficos|Graphics drivers|Drivers gráficos|Pilotes graphiques|Grafiktreiber|Driver grafici
-intro|Descarga, instalación y limpieza automáticas.|Automatic download, installation and cleanup.|Download, instalação e limpeza automáticos.|Téléchargement, installation et nettoyage automatiques.|Automatischer Download, Installation und Bereinigung.|Download, installazione e pulizia automatici.
+intro|Conecta la nueva gráfica. Swap prepara sus drivers.|Connect the new graphics card. Swap prepares its drivers.|Conecte a nova placa gráfica. O Swap prepara os drivers.|Connectez la nouvelle carte graphique. Swap prépare ses pilotes.|Neue Grafikkarte anschließen. Swap bereitet die Treiber vor.|Collega la nuova scheda grafica. Swap prepara i driver.
 detected|GRÁFICA DETECTADA|DETECTED GRAPHICS|PLACA DETECTADA|CARTE DÉTECTÉE|ERKANNTE GRAFIK|GRAFICA RILEVATA
 scanning|Detectando tu equipo…|Detecting your computer…|Detectando seu computador…|Détection de votre PC…|Computer wird erkannt…|Rilevamento del PC…
 driver|Driver activo|Active driver|Driver ativo|Pilote actif|Aktiver Treiber|Driver attivo

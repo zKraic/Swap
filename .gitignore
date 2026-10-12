@@ -22,6 +22,8 @@ docs/validation/images/
 docs/validation/*
 !docs/validation/V04-RESULTS.md
 !docs/validation/v04-result.json
+!docs/validation/V041-RESULTS.md
+!docs/validation/v041-result.json
 scripts/Renew-QemuGuestLogin.ps1
 scripts/vm/RecoverGuestHive.py
 !scripts/vm/RecoverGuestHive.py

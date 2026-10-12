@@ -12,3 +12,10 @@ Initial public experimental release.
 - Project website and direct release downloads. Trusted signing requires external approval.
 
 Physical GPU replacement, real installation/removal and games remain untested. Old local deliveries are preserved outside the initial public repository.
+# 0.4.1 preview
+
+- Use after connecting the new graphics card: clearer app and project description.
+- Preview eligible cleanup packages and the reason each remaining package is retained.
+- Seal and verify automatic transition backups before installation, cleanup and continuation.
+- Reject reused session folders and detect remaining INF packages despite metadata changes.
+- Eight new regression cases and an expanded cleanup disclosure UI check.

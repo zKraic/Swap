@@ -6,6 +6,42 @@ namespace Swap.Core;
 public sealed record BackupFile(string Path, long Bytes, string Sha256);
 public sealed record BackupManifest(int Schema, IReadOnlyList<BackupFile> Files);
 
+// A driver change must retain the same verified recovery material as an independent backup.
+public static class SessionBackups
+{
+    public static Driver[] Drivers(Snapshot snapshot)
+    {
+        var drivers = snapshot.Drivers.Where(d => Planner.IsOem(d.Inf) && d.ClassGuid.Equals(Planner.DisplayGuid, StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (drivers.Select(d => d.Inf).Distinct(StringComparer.OrdinalIgnoreCase).Count() != drivers.Length)
+            throw new IOException("Duplicate Display packages in inventory; backup blocked.");
+        return drivers;
+    }
+    public static async Task ExportAsync(IPlatform platform, Snapshot snapshot, string session, Action<string> log, CancellationToken token)
+    {
+        foreach (var driver in Drivers(snapshot))
+        {
+            token.ThrowIfCancellationRequested();
+            var destination = Path.Combine(session, "backup", driver.Inf);
+            Directory.CreateDirectory(destination);
+            log("Respaldando " + driver.Inf);
+            var result = await platform.ExportAsync(driver.Inf, destination);
+            log(result.Output);
+            if (!result.Success) throw new IOException("Driver backup failed. Installation and cleanup blocked.");
+            await BackupIntegrity.SealAsync(destination, token);
+            await BackupIntegrity.VerifyAsync(destination, token);
+        }
+    }
+    public static async Task VerifyAsync(Snapshot snapshot, string session, CancellationToken token)
+    {
+        var drivers = Drivers(snapshot);
+        if (drivers.Length == 0) return;
+        var root = Path.Combine(session, "backup");
+        if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new IOException("Linked backup directory is not allowed.");
+        foreach (var driver in drivers)
+            await BackupIntegrity.VerifyAsync(Path.Combine(root, driver.Inf), token);
+    }
+}
+
 public static class BackupIntegrity
 {
     public const string ManifestName = "integrity.json";

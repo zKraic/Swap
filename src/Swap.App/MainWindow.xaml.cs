@@ -109,6 +109,9 @@ public partial class MainWindow : Window
         RestartButton.Visibility = !Demo && (snapshot.PendingReboot || rebootRequested) ? Visibility.Visible : Visibility.Collapsed; AdminButton.Visibility = !Demo && !snapshot.Admin ? Visibility.Visible : Visibility.Collapsed;
         HealthText.Text = string.Join("\n\n", snapshot.Adapters.Select(x => $"{x.Name}\n{x.Version} · {x.Inf}\n{T(x.Signed ? "signed" : "unsigned")} · {(x.Problem == 0 ? T("healthy") : "PnP " + x.Problem)}")) + "\n\n" + T(snapshot.Admin ? "admin" : "readOnly") + (snapshot.PendingReboot ? " · " + T("reboot") : "");
         PaintGraphics();
+        var source = PreviousVendor(snapshot);
+        CleanupText.Text = string.Join("\n", snapshot.Drivers.Select(d => d.Inf + " · " + d.Provider + " · " + T(Planner.CleanupReason(snapshot, d, source, Target, SourceBox.SelectedIndex == 0))));
+        CleanupPreview.Header = T("cleanupPreview") + " · " + (snapshot.Complete ? snapshot.Drivers.Count(d => Planner.EligibleCleanup(snapshot, d, source, Target, SourceBox.SelectedIndex == 0)).ToString() : "—");
     }
     private void UpdateButtons()
     {
@@ -398,6 +401,7 @@ public partial class MainWindow : Window
         await AnalyzeAsync(); var current=snapshot!;
         var report = new { app = "Swap", author = "KraicDev", version = ApplicationVersion, generated = DateTimeOffset.Now, simulated = Demo, current.Os, current.Admin, current.Complete, current.PendingReboot, current.Laptop, current.FreeBytes,
             adapters = current.Adapters.Select(a => new { a.Name, a.Vendor, a.Version, a.Inf, a.Problem, a.Signed }), current.Drivers,
+            cleanup = current.Drivers.Select(d => new { d.Inf, d.Provider, reason = Planner.CleanupReason(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0), eligible = Planner.EligibleCleanup(current, d, PreviousVendor(current), Target, SourceBox.SelectedIndex == 0) }),
             displays=graphicsDiagnostics?.Displays.Select(d=>new {d.Name,d.Width,d.Height,d.Hz,d.MaximumHz}),
             probes=graphicsDiagnostics?.Probes.Select(p=>new {p.Name,p.DedicatedBytes,p.Hardware,p.Direct3D,p.FeatureLevel,p.Error}),
             incidents=graphicsDiagnostics?.Incidents, graphicsDiagnostics?.DisplaysComplete, graphicsDiagnostics?.EventsComplete,

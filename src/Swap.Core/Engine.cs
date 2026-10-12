@@ -15,8 +15,9 @@ public sealed class Engine(IPlatform platform)
 {
     public async Task<Outcome> RunAsync(Plan plan, string session, Action<string> progress, CancellationToken token = default, Action<string>? stage = null)
     {
+        if (Directory.Exists(session)) throw new IOException("A new session directory is required.");
         Directory.CreateDirectory(session);
-        using var sessionLock = new FileStream(Path.Combine(session, "session.lock"), FileMode.Create, FileAccess.ReadWrite, FileShare.None);
+        using var sessionLock = new FileStream(Path.Combine(session, "session.lock"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
         var messages = new List<string>();
         bool reboot = false;
         void Log(string text)
@@ -43,18 +44,9 @@ public sealed class Engine(IPlatform platform)
             if (!fresh.Remove.SequenceEqual(plan.Remove)) throw new InvalidOperationException("El inventario cambió. Prepara un plan nuevo.");
             stage?.Invoke("backup");
             Save("before", current); Save("plan", fresh); Save("state", new { phase = "backup", completed = false });
-            foreach (var driver in current.Drivers.Where(d => Planner.IsOem(d.Inf) && d.ClassGuid.Equals(Planner.DisplayGuid, StringComparison.OrdinalIgnoreCase)))
-            {
-                token.ThrowIfCancellationRequested();
-                var dir = Path.Combine(session, "backup", driver.Inf);
-                Directory.CreateDirectory(dir);
-                Log("Respaldando " + driver.Inf);
-                var result = await platform.ExportAsync(driver.Inf, dir);
-                Log(result.Output);
-                if (!result.Success || !Directory.EnumerateFiles(dir, "*.inf", SearchOption.AllDirectories).Any())
-                    throw new InvalidOperationException("Falló el respaldo de " + driver.Inf + ". No se instalará ni eliminará ningún driver.");
-            }
+            await SessionBackups.ExportAsync(platform, current, session, Log, token);
             Log(await platform.RestorePointAsync());
+            await SessionBackups.VerifyAsync(current, session, token);
             token.ThrowIfCancellationRequested();
             Save("state", new { phase = "install", completed = false });
             stage?.Invoke("install");
@@ -74,6 +66,7 @@ public sealed class Engine(IPlatform platform)
                 return new(false, reboot || after.PendingReboot, session, messages);
             }
             stage?.Invoke("cleanup");
+            await SessionBackups.VerifyAsync(current, session, token);
             Save("state", new { phase = "cleanup", completed = false });
             foreach (var driver in fresh.Remove)
             {
@@ -86,6 +79,7 @@ public sealed class Engine(IPlatform platform)
                     !Planner.EligibleCleanup(check, driver, plan.Source, plan.Target, plan.CleanupAllAbsent))
                     throw new InvalidOperationException("El estado de hardware cambió. Se detuvo la limpieza.");
                 if (!check.Drivers.Contains(driver)) throw new InvalidOperationException("El paquete antiguo cambió. Revisa el inventario.");
+                await BackupIntegrity.VerifyAsync(Path.Combine(session, "backup", driver.Inf), token);
                 Log("Retirando paquete sin uso " + driver.Inf);
                 var deleted = await platform.DeleteAsync(driver.Inf); Log(deleted.Output); reboot |= deleted.Code == 3010;
                 if (!deleted.Success) throw new InvalidOperationException("Windows no permitió retirar " + driver.Inf + ". Se detuvo la limpieza.");
@@ -98,7 +92,7 @@ public sealed class Engine(IPlatform platform)
             }
             var final = await platform.ScanAsync(); Save("after", final);
             reboot |= final.PendingReboot;
-            if (!final.Complete || final.MachineId != current.MachineId || !final.Adapters.Any(a => a.Vendor == plan.Target && a.Id == adapter.Id && a.Inf == adapter.Inf && a.Version == adapter.Version && a.Problem == 0 && a.Signed) || fresh.Remove.Any(d => final.Drivers.Contains(d)))
+            if (!final.Complete || final.MachineId != current.MachineId || !final.Adapters.Any(a => a.Vendor == plan.Target && a.Id == adapter.Id && a.Inf == adapter.Inf && a.Version == adapter.Version && a.Problem == 0 && a.Signed) || fresh.Remove.Any(d => final.Drivers.Any(x => x.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase))))
                 throw new InvalidOperationException("La comprobación final necesita revisión. Consulta el registro.");
             if (reboot)
             {

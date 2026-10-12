@@ -36,4 +36,17 @@ public static partial class Planner
             vendor is Vendor.Nvidia or Vendor.Amd or Vendor.Intel && vendor != target && (allAbsent || vendor == source) &&
             !s.Adapters.Any(a => a.Vendor == vendor || a.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase));
     }
+
+    public static string CleanupReason(Snapshot s, Driver d, Vendor source, Vendor target, bool allAbsent)
+    {
+        if (EligibleCleanup(s, d, source, target, allAbsent)) return "cleanupUnused";
+        if (s.Laptop) return "cleanupOem";
+        if (d.BootCritical || !IsOem(d.Inf) || !d.ClassGuid.Equals(DisplayGuid, StringComparison.OrdinalIgnoreCase)) return "cleanupProtected";
+        var vendor = Vendors.FromProvider(d.Provider);
+        if (vendor == Vendor.Unknown) return "cleanupUnknown";
+        if (s.Adapters.Any(a => a.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase))) return "cleanupActive";
+        if (vendor == target) return "cleanupRecovery";
+        if (s.Adapters.Any(a => a.Vendor == vendor)) return "cleanupPresent";
+        return "cleanupSelection";
+    }
 }

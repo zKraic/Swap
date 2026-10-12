@@ -2,7 +2,7 @@
 
 <p align="center"><a href="https://zkraic.github.io/Swap/">Website</a> · <a href="https://github.com/zKraic/Swap/releases/tag/v0.4.0-preview">Download EXE</a> · <a href="README.es.md">Español</a> · <a href="CONTRIBUTING.md">Contribute</a></p>
 
-**A portable Windows utility for changing GPU drivers.** NVIDIA, AMD and Intel Arc. Free, open source, no account or subscription.
+**Prepare Windows after connecting a graphics card of another brand.** NVIDIA, AMD and Intel Arc. Free, open source, no account or subscription.
 
 > **Experimental preview · Windows 10/11 x64.** Driver installation/removal has been tested with a simulated backend, not a physical GPU replacement. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V04-RESULTS.md) · [Code signing policy](docs/SIGNING.md).
 
@@ -17,6 +17,8 @@ With the new card connected, **Install and clean** finds a matching Display driv
 | Hardware-matched download and installation | **Independent graphics backup** with file integrity checks | GPU presence, PnP status and signed driver |
 | Resume when Windows requires a restart | Signed INF library and compatible backup restore | Hardware Direct3D probe, resolution and Hz |
 | Stop on uncertainty; preserve present GPUs | Local history and support reports | Graphics incidents and before/after comparison |
+
+The cleanup disclosure shows which packages are eligible and why the others are retained. Automatic transition backups now receive the same integrity checks before installation and cleanup. [Critical code review](docs/REVIEW-041.md).
 
 Independent backup works without changing drivers. It checks altered, missing or added files before restoration; Windows signature checks still apply. Checksums detect changes, not a party replacing both files and manifest. [Community requests](docs/COMMUNITY.md).
 
