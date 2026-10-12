@@ -32,10 +32,34 @@ public static partial class Planner
     public static bool EligibleCleanup(Snapshot s, Driver d, Vendor source, Vendor target, bool allAbsent)
     {
         var vendor = Vendors.FromProvider(d.Provider);
+        // Automatic mode never assumes that the processor brand's (possibly firmware-disabled) integrated GPU is gone.
         return !s.Laptop && IsOem(d.Inf) && !d.BootCritical && d.ClassGuid.Equals(DisplayGuid, StringComparison.OrdinalIgnoreCase) &&
-            vendor is Vendor.Nvidia or Vendor.Amd or Vendor.Intel && vendor != target && (allAbsent || vendor == source) &&
-            !s.Adapters.Any(a => a.Vendor == vendor || a.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase));
+            vendor is Vendor.Nvidia or Vendor.Amd or Vendor.Intel && vendor != target && (vendor == source || allAbsent && !s.IntegratedCaution(vendor)) &&
+            !s.Adapters.Any(a => a.Vendor == vendor || a.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase)) &&
+            s.Disconnected.Where(p => p.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase)).All(p => p.Vendor == vendor);
     }
+
+    // The removed card stays registered as a disconnected device that still uses its driver package; Windows refuses
+    // to delete a package in use, so that device entry is removed first. Nothing connected is ever touched.
+    public static async Task RemoveDisconnectedAsync(IPlatform platform, Snapshot current, Driver driver, Action<string> log)
+    {
+        var vendor = Vendors.FromProvider(driver.Provider);
+        foreach (var phantom in current.Disconnected.Where(p => p.Inf.Equals(driver.Inf, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (phantom.Vendor != vendor || current.Adapters.Any(a => a.Id.Equals(phantom.Id, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Un dispositivo inesperado usa " + driver.Inf + ". Se detuvo la limpieza.");
+            log("Retirando el registro de la tarjeta desconectada " + phantom.Name);
+            var removed = await platform.RemoveDeviceAsync(phantom.Id);
+            log(removed.Output);
+            if (!removed.Success) throw new InvalidOperationException("Windows no permitió retirar la tarjeta desconectada " + phantom.Name + ". Se conservan sus paquetes.");
+        }
+    }
+
+    // The brand of unused Display packages whose hardware is gone. Never guesses the processor brand's integrated GPU;
+    // without a candidate the target is returned, which means an upgrade without cleanup.
+    public static Vendor DetectSource(Snapshot s, Vendor target) =>
+        s.Drivers.Where(d => IsOem(d.Inf) && !d.BootCritical && d.ClassGuid.Equals(DisplayGuid, StringComparison.OrdinalIgnoreCase) && !s.Adapters.Any(a => a.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase)))
+            .Select(d => Vendors.FromProvider(d.Provider)).FirstOrDefault(v => v != Vendor.Unknown && v != target && !s.Adapters.Any(a => a.Vendor == v) && !s.IntegratedCaution(v), target);
 
     public static string CleanupReason(Snapshot s, Driver d, Vendor source, Vendor target, bool allAbsent)
     {
@@ -47,6 +71,7 @@ public static partial class Planner
         if (s.Adapters.Any(a => a.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase))) return "cleanupActive";
         if (vendor == target) return "cleanupRecovery";
         if (s.Adapters.Any(a => a.Vendor == vendor)) return "cleanupPresent";
+        if (allAbsent && vendor != source && s.IntegratedCaution(vendor)) return "cleanupIntegrated";
         return "cleanupSelection";
     }
 }

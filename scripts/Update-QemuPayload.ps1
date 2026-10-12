@@ -14,7 +14,7 @@ $bundle=Join-Path $input 'bundle'
 Copy-Item (Join-Path $root $ApplicationPath) (Join-Path $bundle 'Swap.exe')
 Copy-Item (Join-Path $root 'artifacts/vm/bundle/tests/Swap.Tests.exe') (Join-Path $bundle 'tests/Swap.Tests.exe')
 Copy-Item (Join-Path $PSScriptRoot 'Invoke-GuestTests.ps1') (Join-Path $bundle 'Invoke-GuestTests.ps1')
-@{expectedCorePassed=([int](Get-Content (Join-Path $root 'artifacts/test-results.json') -Raw|ConvertFrom-Json).passed+3); expectedUiPassed=129; expectedCaptures=34;author='KraicDev';hostComputer=$env:COMPUTERNAME;hostUuid=[string](Get-CimInstance Win32_ComputerSystemProduct).UUID;
+@{expectedCorePassed=([int](Get-Content (Join-Path $root 'artifacts/test-results.json') -Raw|ConvertFrom-Json).passed+3); expectedUiPassed=155; expectedCaptures=43;author='KraicDev';hostComputer=$env:COMPUTERNAME;hostUuid=[string](Get-CimInstance Win32_ComputerSystemProduct).UUID;
 appSha256=(Get-FileHash (Join-Path $bundle 'Swap.exe') -Algorithm SHA256).Hash;testsSha256=(Get-FileHash (Join-Path $bundle 'tests/Swap.Tests.exe') -Algorithm SHA256).Hash}|ConvertTo-Json|Set-Content (Join-Path $bundle 'manifest.json') -Encoding UTF8
 Add-Type -TypeDefinition @'
 using System; using System.IO; using System.Runtime.InteropServices; using System.Runtime.InteropServices.ComTypes;

@@ -165,9 +165,13 @@ public sealed partial class WindowsPlatform : IPlatform
     public Task<CommandResult> DeleteAsync(string inf)
     {
         if (!Planner.IsOem(inf)) throw new IOException("Nombre OEM inválido.");
-        // No /force, /uninstall, /reboot, wildcards or registry scrubbing.
+        // No /force, /uninstall, /reboot or wildcards. A package still used by a device is refused by Windows.
         return RunAsync(SystemExe("pnputil.exe"), ["/delete-driver", inf], 600);
     }
+    // Only disconnected devices are passed here; WindowsCleanupPlatform validates the instance ID format.
+    public Task<CommandResult> RemoveDeviceAsync(string instanceId) => WindowsCleanupPlatform.Present(instanceId)
+        ? Task.FromResult(new CommandResult(1, "The device is connected; it is not removed."))
+        : new WindowsCleanupPlatform().RemoveDeviceAsync(instanceId);
     public async Task<string> RestorePointAsync()
     {
         try

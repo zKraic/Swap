@@ -19,4 +19,13 @@ foreach($query in @(
         if($_.FullyQualifiedErrorId -notlike 'NoMatchingEventsFound*'){$complete=$false}
     }
 }
-@{Incidents=@($incidents|Sort-Object Time -Descending|Select-Object -First 100);Complete=$complete}|ConvertTo-Json -Depth 5 -Compress
+# PCI Express link width of connected GPUs: a card in a reduced slot or not fully seated shows fewer lanes.
+$links=@()
+try {
+    foreach($device in @(Get-PnpDevice -Class Display -PresentOnly -ErrorAction Stop)) {
+        $p=@{}
+        foreach($x in @(Get-PnpDeviceProperty -InstanceId $device.InstanceId -KeyName 'DEVPKEY_PciDevice_CurrentLinkWidth','DEVPKEY_PciDevice_MaxLinkWidth','DEVPKEY_PciDevice_CurrentLinkSpeed','DEVPKEY_PciDevice_MaxLinkSpeed' -ErrorAction SilentlyContinue)) { if($null -ne $x.Data){$p[[string]$x.KeyName]=[int]$x.Data} }
+        if($p['DEVPKEY_PciDevice_MaxLinkWidth'] -gt 0){$links+=@{AdapterId=[string]$device.InstanceId;Width=[int]$p['DEVPKEY_PciDevice_CurrentLinkWidth'];MaxWidth=[int]$p['DEVPKEY_PciDevice_MaxLinkWidth'];Speed=[int]$p['DEVPKEY_PciDevice_CurrentLinkSpeed'];MaxSpeed=[int]$p['DEVPKEY_PciDevice_MaxLinkSpeed']}}
+    }
+} catch { }
+@{Incidents=@($incidents|Sort-Object {[string]$_.Time} -Descending|Select-Object -First 100);Complete=$complete;Links=@($links)}|ConvertTo-Json -Depth 5 -Compress

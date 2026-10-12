@@ -5,7 +5,7 @@ using System.Windows.Media;
 using Microsoft.Win32;
 namespace Swap.App;
 
-public sealed record Preferences(string Language = "auto", string Theme = "auto", int Source = 0)
+public sealed record Preferences(string Language = "auto", string Theme = "auto", int Source = 0, bool DeepClean = true)
 {
     public static string DataRoot { get; } = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "Data"))
         ? Path.Combine(AppContext.BaseDirectory, "Data") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Swap");

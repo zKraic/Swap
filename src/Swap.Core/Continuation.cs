@@ -53,6 +53,7 @@ public sealed class Continuation(IPlatform platform)
                 if(!current.Drivers.Any(d=>d.Inf.Equals(driver.Inf,StringComparison.OrdinalIgnoreCase))) continue;
                 if(!current.Drivers.Contains(driver) || !Planner.EligibleCleanup(current,driver,plan.Source,plan.Target,plan.CleanupAllAbsent)) throw new InvalidOperationException("Un paquete antiguo cambió o volvió a estar en uso.");
                 await BackupIntegrity.VerifyAsync(Path.Combine(session,"backup",driver.Inf), token);
+                await Planner.RemoveDisconnectedAsync(platform,current,driver,Record);
                 Record("Retirando paquete sin uso "+driver.Inf);
                 var result=await platform.DeleteAsync(driver.Inf); Record(result.Output);
                 if(!result.Success) throw new IOException("Windows no permitió retirar el paquete antiguo.");

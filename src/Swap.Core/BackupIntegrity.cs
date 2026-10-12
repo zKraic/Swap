@@ -57,11 +57,13 @@ public static class BackupIntegrity
             else if (!entry.Equals(manifestPath, StringComparison.OrdinalIgnoreCase)) yield return entry;
         }
     }
-    private static async Task<BackupFile[]> Describe(string root, CancellationToken token)
+    // Driver backups need an INF. Quarantined application folders may be empty and much larger.
+    private static int Limit(bool driver) => driver ? 20000 : 400000;
+    private static async Task<BackupFile[]> Describe(string root, CancellationToken token, bool driver = true)
     {
         root = Path.GetFullPath(root);
-        var files = Files(root, Path.Combine(root, ManifestName)).Take(20001).Order(StringComparer.OrdinalIgnoreCase).ToArray();
-        if (files.Length is 0 or > 20000 || !files.Any(f => Path.GetExtension(f).Equals(".inf", StringComparison.OrdinalIgnoreCase))) throw new IOException("Backup has no INF or exceeds its file limit.");
+        var files = Files(root, Path.Combine(root, ManifestName)).Take(Limit(driver) + 1).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (files.Length > Limit(driver) || driver && (files.Length == 0 || !files.Any(f => Path.GetExtension(f).Equals(".inf", StringComparison.OrdinalIgnoreCase)))) throw new IOException("Backup has no INF or exceeds its file limit.");
         var result = new List<BackupFile>();
         foreach (var path in files)
         {
@@ -71,23 +73,23 @@ public static class BackupIntegrity
         }
         return result.ToArray();
     }
-    public static async Task SealAsync(string root, CancellationToken token = default)
+    public static async Task SealAsync(string root, CancellationToken token = default, bool driver = true)
     {
-        var description = await Describe(root, token);
+        var description = await Describe(root, token, driver);
         // CreateNew never replaces an existing manifest. This checksum is not a signature.
         using var stream = new FileStream(Path.Combine(root, ManifestName), FileMode.CreateNew, FileAccess.Write, FileShare.None);
         await JsonSerializer.SerializeAsync(stream, new BackupManifest(1, description), cancellationToken: token);
     }
-    public static async Task VerifyAsync(string root, CancellationToken token = default)
+    public static async Task VerifyAsync(string root, CancellationToken token = default, bool driver = true)
     {
         var path = Path.Combine(root, ManifestName);
-        if (new FileInfo(path).Length > 8 * 1024 * 1024 || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException("Invalid backup manifest.");
+        if (new FileInfo(path).Length > (driver ? 8 : 128) * 1024 * 1024 || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException("Invalid backup manifest.");
         using var stream = File.OpenRead(path);
         BackupManifest? manifest;
         try { manifest = await JsonSerializer.DeserializeAsync<BackupManifest>(stream, cancellationToken: token); }
         catch (JsonException e) { throw new IOException("Invalid backup manifest.", e); }
-        if (manifest is not { Schema: 1, Files: not null } || manifest.Files.Count is 0 or > 20000) throw new IOException("Invalid backup manifest.");
-        var actual = await Describe(root, token);
+        if (manifest is not { Schema: 1, Files: not null } || manifest.Files.Count > Limit(driver) || driver && manifest.Files.Count == 0) throw new IOException("Invalid backup manifest.");
+        var actual = await Describe(root, token, driver);
         // Only compare relative names; never open paths supplied by an untrusted manifest.
         if (!actual.SequenceEqual(manifest.Files)) throw new IOException("Backup files changed. Restore blocked.");
     }

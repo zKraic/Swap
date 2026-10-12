@@ -42,6 +42,7 @@ public sealed class Maintenance(IPlatform platform)
                 token.ThrowIfCancellationRequested(); var current = await Validate();
                 if (!Planner.EligibleCleanup(current, d, source, target, cleanupAllAbsent) || !current.Drivers.Contains(d)) throw new InvalidOperationException("El inventario cambió; limpieza detenida.");
                 await BackupIntegrity.VerifyAsync(Path.Combine(session, "backup", d.Inf), token);
+                await Planner.RemoveDisconnectedAsync(platform, current, d, Record);
                 Record("Retirando paquete sin uso " + d.Inf); var deleted = await platform.DeleteAsync(d.Inf);
                 if (!deleted.Success) throw new IOException("La retirada necesita revisión.");
                 if (deleted.Code == 3010)

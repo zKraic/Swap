@@ -29,14 +29,14 @@ public partial class MainWindow
             foreach (var theme in new[] { "dark", "light" })
             foreach (var width in new[] { 1120, 880 })
             {
-                preferences = new(language, theme); dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); SetFrame(); Status.Text = T("ready");
+                preferences = new(language, theme); dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); RelabelCleanup(); SetFrame(); Status.Text = T("ready");
                 WindowState = WindowState.Normal;
                 Width = width; Height = width == 880 ? 640 : 810;
-                foreach (var page in new[] { HomePage, LibraryPage, RecoveryPage, DiagnosticsPage, SettingsPage })
+                foreach (var page in new[] { HomePage, CleanupPage, LibraryPage, RecoveryPage, DiagnosticsPage, SettingsPage })
                 {
-                    foreach (var candidate in new[] { HomePage, LibraryPage, RecoveryPage, DiagnosticsPage, SettingsPage }) candidate.Visibility = candidate == page ? Visibility.Visible : Visibility.Collapsed;
+                    foreach (var candidate in new[] { HomePage, CleanupPage, LibraryPage, RecoveryPage, DiagnosticsPage, SettingsPage }) candidate.Visibility = candidate == page ? Visibility.Visible : Visibility.Collapsed;
                     var name = page.Name.Replace("Page", "");
-                    (name switch { "Home" => HomeNav, "Library" => LibraryNav, "Recovery" => RecoveryNav, "Diagnostics" => DiagnosticsNav, _ => SettingsNav }).IsChecked = true;
+                    (name switch { "Home" => HomeNav, "Cleanup" => CleanupNav, "Library" => LibraryNav, "Recovery" => RecoveryNav, "Diagnostics" => DiagnosticsNav, _ => SettingsNav }).IsChecked = true;
                     PageTitle.Text = T(name == "Home" ? "home" : name.ToLowerInvariant());
                     UpdateLayout(); PageScroll.ScrollToTop(); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
                     // Check wrapping and parent bounds inside the scrolled content, independently of viewport height.
@@ -53,7 +53,7 @@ public partial class MainWindow
             }
             preferences = new("es", "dark"); dark = preferences.Apply(); PopulatePreferences();
             Width = 1120; Height = 810; HomeNav.IsChecked = true;
-            foreach (var page in new[] { HomePage, LibraryPage, RecoveryPage, DiagnosticsPage, SettingsPage }) page.Visibility = page == HomePage ? Visibility.Visible : Visibility.Collapsed;
+            foreach (var page in new[] { HomePage, CleanupPage, LibraryPage, RecoveryPage, DiagnosticsPage, SettingsPage }) page.Visibility = page == HomePage ? Visibility.Visible : Visibility.Collapsed;
             PaintSnapshot(); CleanupPreview.IsExpanded = true; UpdateLayout();
             var cleanupIssues = new List<string>(); InspectLayout(HomePage, cleanupIssues);
             if(cleanupIssues.Count>0 || !CleanupText.Text.Contains("oem")) throw new InvalidOperationException("Cleanup preview layout or inventory failed.");
@@ -82,7 +82,31 @@ public partial class MainWindow
             if(expandedIssues.Count>0)throw new InvalidOperationException("Expanded health layout: "+string.Join(", ",expandedIssues));
             Capture(Path.Combine(output,"health-expanded.png"));
             results.Add(new {scenario="health-disclosures-demo",passed=true});
-            platform = new DemoPlatform { Target = Vendor.Intel }; await AnalyzeAsync();
+            // Deep cleanup on simulated leftovers of a removed NVIDIA card: preview, run, verify and undo.
+            platform = new DemoPlatform(); cleanupPlatform = null; await AnalyzeAsync();
+            CleanupNav.IsChecked = true; await AnalyzeCleanupAsync(); UpdateLayout();
+            if (cleanupRows.Count < 15 || !cleanupRows.Any(r => r.Item.Kind == RemnantKind.Device) || cleanupPlan?.Kept.Any(k => k.Reason == "physxKept") != true || !CleanupRunButton.IsEnabled)
+                throw new InvalidOperationException("Deep cleanup preview failed: " + cleanupRows.Count);
+            var cleanupIssues2 = new List<string>(); InspectLayout(CleanupPage, cleanupIssues2);
+            if (cleanupIssues2.Count > 0) throw new InvalidOperationException("Deep cleanup layout: " + string.Join(", ", cleanupIssues2));
+            Capture(Path.Combine(output, "deep-cleanup-preview.png"));
+            var cleaned = await RunCleanupCoreAsync(cleanupPlan!, cleanupRows.Where(r => r.Selected).Select(r => r.Item.Key).ToHashSet(StringComparer.OrdinalIgnoreCase), CancellationToken.None);
+            if (cleaned.Failed != 0 || cleaned.Done < 15) throw new InvalidOperationException($"Deep cleanup demo failed: done={cleaned.Done} failed={cleaned.Failed}");
+            await AnalyzeCleanupAsync(); UpdateLayout();
+            if (cleanupRows.Count != 0 || CleanupEmpty.Visibility != Visibility.Visible) throw new InvalidOperationException("Deep cleanup left items: " + cleanupRows.Count);
+            Capture(Path.Combine(output, "deep-cleanup-done.png"));
+            var undone = await new DeepCleanEngine(Cleanup).UndoAsync(cleaned.Session, CleanupBackupRoot(), Log);
+            if (undone.Results.Count(r => r.Status == "restored") < 8 || undone.Results.Any(r => r.Status == "failed")) throw new InvalidOperationException("Deep cleanup undo failed.");
+            results.Add(new { scenario = "deep-cleanup-run-and-undo-demo", passed = true, cleaned.Done, restored = undone.Results.Count(r => r.Status == "restored") });
+            DiagnosticsNav.IsChecked = true; await InspectGraphicsAsync(); UpdateLayout();
+            if (RefreshPanel.Children.Count != 1) throw new InvalidOperationException("Refresh-rate offer missing.");
+            ApplyRefresh(RefreshPanel.Children[0], new RoutedEventArgs()); await Task.Delay(100);
+            if (RefreshConfirm.Visibility != Visibility.Visible) throw new InvalidOperationException("Refresh confirmation missing.");
+            Capture(Path.Combine(output, "refresh-confirm.png"));
+            await FinishRefreshAsync(false);
+            if (demoHz != 60 || RefreshConfirm.Visibility == Visibility.Visible) throw new InvalidOperationException("Refresh revert failed.");
+            demoHz = null; await InspectGraphicsAsync();
+            results.Add(new { scenario = "refresh-apply-and-revert-demo", passed = true });            platform = new DemoPlatform { Target = Vendor.Intel }; await AnalyzeAsync();
             var backupPath = await new GraphicsBackup(platform).RunAsync(snapshot!, NewSession(), Log);
             foreach (var directory in Directory.GetDirectories(Path.Combine(backupPath, "backup"))) await BackupIntegrity.VerifyAsync(directory);
             RefreshFiles(); RecoveryNav.IsChecked = true; UpdateLayout();

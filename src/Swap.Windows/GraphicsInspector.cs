@@ -36,6 +36,7 @@ public static class GraphicsInspector
     }
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="EnumDisplayDevicesW")] [return:MarshalAs(UnmanagedType.Bool)] private static extern bool EnumDevices(string? device,uint index,ref DisplayDevice data,uint flags);
     [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="EnumDisplaySettingsW")] [return:MarshalAs(UnmanagedType.Bool)] private static extern bool EnumModes(string device,int index,ref DeviceMode mode);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode,EntryPoint="ChangeDisplaySettingsExW")] private static extern int ChangeSettings(string device,ref DeviceMode mode,IntPtr window,uint flags,IntPtr parameter);
     [DllImport("dxgi.dll")] private static extern int CreateDXGIFactory(ref Guid id,out IntPtr factory);
     [DllImport("d3d11.dll")] private static extern int D3D11CreateDevice(IntPtr adapter,int type,IntPtr software,uint flags,IntPtr levels,uint levelCount,uint sdk,out IntPtr device,out int level,out IntPtr context);
     [UnmanagedFunctionPointer(CallingConvention.StdCall)] private delegate int EnumAdapter(IntPtr factory,uint index,out IntPtr adapter);
@@ -79,19 +80,32 @@ public static class GraphicsInspector
         return(displays.ToArray(),probes.ToArray());
     }
 
-    private sealed record EventsResult(DisplayIncident[] Incidents,bool Complete);
+    // Apply a refresh rate the display already reports for its current resolution. Returns the previous rate.
+    // The caller asks for confirmation and restores the previous rate when it is not confirmed.
+    public static int SetRefresh(string device,int hz)
+    {
+        var current=DeviceMode.New(); if(!EnumModes(device,-1,ref current)) throw new IOException("Display mode unavailable.");
+        bool listed=false;
+        for(int j=0;j<2048 && !listed;j++){var mode=DeviceMode.New(); if(!EnumModes(device,j,ref mode))break; listed=mode.Width==current.Width&&mode.Height==current.Height&&mode.Bits==current.Bits&&mode.Frequency==hz;}
+        if(!listed) throw new IOException("Refresh rate not reported by the display.");
+        var target=current; target.Frequency=hz; target.Fields=0x40000|0x80000|0x100000|0x400000;
+        if(ChangeSettings(device,ref target,IntPtr.Zero,0x2,IntPtr.Zero)!=0) throw new IOException("Windows rejected the display mode.");
+        if(ChangeSettings(device,ref target,IntPtr.Zero,0x1,IntPtr.Zero)!=0) throw new IOException("Windows did not apply the display mode.");
+        return current.Frequency;
+    }
+    private sealed record EventsResult(DisplayIncident[] Incidents,bool Complete,PcieLink[]? Links);
     public static async Task<GraphicsDiagnostics> ReadAsync()
     {
-        var warnings=new List<string>(); DisplayOutput[] displays=[];GraphicsProbe[] probes=[];DisplayIncident[] incidents=[];
+        var warnings=new List<string>(); DisplayOutput[] displays=[];GraphicsProbe[] probes=[];DisplayIncident[] incidents=[];PcieLink[] links=[];
         bool displaysComplete=false,eventsComplete=false;
         try { (displays,probes)=await Task.Run(ReadNative);displaysComplete=true; } catch(Exception e){warnings.Add("Native graphics: "+e.GetType().Name);}
         try
         {
             var result=JsonSerializer.Deserialize<EventsResult>(await WindowsPlatform.PowerShellAsync(WindowsPlatform.Script("HealthEvents")));
-            if(result is not null){incidents=result.Incidents;eventsComplete=result.Complete;}
+            if(result is not null){incidents=result.Incidents;eventsComplete=result.Complete;links=result.Links??[];}
         }
         catch(Exception e){warnings.Add("Display events: "+e.GetType().Name);}
-        return new(DateTimeOffset.UtcNow,displays,probes,incidents,displaysComplete,eventsComplete,warnings);
+        return new(DateTimeOffset.UtcNow,displays,probes,incidents,displaysComplete,eventsComplete,warnings,links);
     }
     public static GraphicsDiagnostics Demo(Adapter adapter) => new(DateTimeOffset.UtcNow,
         [new("DEMO-DISPLAY","Display",adapter.Id,2560,1440,60,144)],

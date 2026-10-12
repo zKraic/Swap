@@ -11,6 +11,7 @@ public interface IPlatform
     Task<CommandResult> DeleteAsync(string inf);
     Task<string> RestorePointAsync();
     Task<bool> VerifyGraphicsAsync(Adapter adapter);
+    Task<CommandResult> RemoveDeviceAsync(string instanceId) => Task.FromResult(new CommandResult(50, "Device removal is not available."));
 }
 
 public sealed class Engine(IPlatform platform)
@@ -84,6 +85,7 @@ public sealed class Engine(IPlatform platform)
                 _ = Planner.Create(check, plan.Source, plan.Target, plan.Package, plan.TargetId, plan.CleanupAllAbsent);
                 if (!check.Drivers.Contains(driver)) throw new InvalidOperationException("El paquete antiguo cambió. Revisa el inventario.");
                 await BackupIntegrity.VerifyAsync(Path.Combine(session, "backup", driver.Inf), token);
+                await Planner.RemoveDisconnectedAsync(platform, check, driver, Log);
                 Log("Retirando paquete sin uso " + driver.Inf);
                 var deleted = await platform.DeleteAsync(driver.Inf); Log(deleted.Output); reboot |= deleted.Code == 3010;
                 if (!deleted.Success) throw new InvalidOperationException("Windows no permitió retirar " + driver.Inf + ". Se detuvo la limpieza.");

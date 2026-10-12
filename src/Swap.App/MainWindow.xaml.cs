@@ -56,14 +56,14 @@ public partial class MainWindow : Window
     {
         if (busy) { Status.Text = T("wait"); return; }
         busy = true; RunButton.IsEnabled = DownloadButton.IsEnabled = DemoButton.IsEnabled = false;
-        LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = false;
+        LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = DeepCleanBox.IsEnabled = false;
         Progress.Visibility = Visibility.Visible; Details.IsExpanded = false;
         try { await action(); }
         catch (OperationCanceledException) { Status.Text = T("cancelled"); }
         catch (Exception e) { Status.Text = Localization.Translations.Keys.Any(k => T(k) == e.Message) ? e.Message : T("failed"); Log(e.ToString()); Details.IsExpanded = true; }
         finally
         {
-            busy = false; LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = true;
+            busy = false; LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = DeepCleanBox.IsEnabled = true;
             DemoButton.IsEnabled = true; Progress.Visibility = CancelButton.Visibility = Visibility.Collapsed; UpdateButtons();
         }
     }
@@ -124,8 +124,7 @@ public partial class MainWindow : Window
     private Vendor PreviousVendor(Snapshot current)
     {
         if (SourceBox.SelectedIndex > 0) return new[] { Vendor.Unknown, Vendor.Nvidia, Vendor.Amd, Vendor.Intel }[SourceBox.SelectedIndex];
-        return current.Drivers.Where(d => Planner.IsOem(d.Inf) && !d.BootCritical && d.ClassGuid.Equals(Planner.DisplayGuid, StringComparison.OrdinalIgnoreCase) && !current.Adapters.Any(a => a.Inf.Equals(d.Inf, StringComparison.OrdinalIgnoreCase)))
-            .Select(d => Vendors.FromProvider(d.Provider)).FirstOrDefault(v => v != Vendor.Unknown && v != Target && !current.Adapters.Any(a => a.Vendor == v), Target);
+        return Planner.DetectSource(current, Target);
     }
     private string NewSession() => Path.Combine(dataRoot, "Sessions", DateTime.Now.ToString("yyyyMMdd-HHmmss") + (Demo ? "-DEMO-" : "-LIVE-") + Guid.NewGuid().ToString("N")[..6]);
     private void Preflight(Snapshot current)
@@ -161,6 +160,7 @@ public partial class MainWindow : Window
                 if (TargetAdapter is not { Signed: true, Problem: 0 } || !Planner.IsOem(TargetAdapter.Inf)) { Status.Text = T("noCompatible"); return; }
                 var outcome = await new Maintenance(platform).RunAsync(before, source, Target, NewSession(), Log, token, Stage, TargetAdapter!.Id, SourceBox.SelectedIndex == 0);
                 rebootRequested = outcome.RebootRequired; await RegisterContinuationAsync(outcome);
+                if (outcome.Verified) await AutoCleanupAsync(token);
                 await AnalyzeAsync(); await SaveVerifiedCheckpointAsync(outcome.Verified); if (outcome.Verified) FinishStages(false);
                 Status.Text = T(outcome.Verified ? "noOffer" : outcome.RebootRequired ? "reboot" : "review"); Log(outcome.SessionPath); return;
             }
@@ -173,6 +173,7 @@ public partial class MainWindow : Window
             if (downloadOnly) { Step1.Text = Step2.Text = "✓"; Step1.SetResourceReference(TextBlock.ForegroundProperty, "Good"); Step2.SetResourceReference(TextBlock.ForegroundProperty, "Good"); Status.Text = T(Demo ? "demoDone" : "downloaded"); return; }
             var session = NewSession(); var resultOutcome = await new Engine(platform).RunAsync(plan, session, Log, token, Stage);
             rebootRequested = resultOutcome.RebootRequired; await RegisterContinuationAsync(resultOutcome);
+            if (resultOutcome.Verified) await AutoCleanupAsync(token);
             await AnalyzeAsync(); await SaveVerifiedCheckpointAsync(resultOutcome.Verified); if (resultOutcome.Verified) FinishStages();
             Status.Text = T(Demo ? "demoDone" : resultOutcome.Verified ? "done" : resultOutcome.RebootRequired ? "reboot" : "review");
             if (resultOutcome.RebootRequired && !Demo) { AlertBorder.Visibility = RestartButton.Visibility = Visibility.Visible; AlertText.Text = T("reboot"); } Log(session);
@@ -209,7 +210,9 @@ public partial class MainWindow : Window
                     catch(Exception e){Log(T("checkpointReadError")+" · "+e.GetType().Name);}
                 }
                 var outcome = await new Continuation(platform).RunAsync(pending.Session, Log, token, Stage);
-                rebootRequested = outcome.RebootRequired; await RegisterContinuationAsync(outcome); await AnalyzeAsync(); await SaveVerifiedCheckpointAsync(outcome.Verified);
+                rebootRequested = outcome.RebootRequired; await RegisterContinuationAsync(outcome);
+                if (outcome.Verified) await AutoCleanupAsync(token);
+                await AnalyzeAsync(); await SaveVerifiedCheckpointAsync(outcome.Verified);
                 if (outcome.Verified) FinishStages(); Status.Text = T(outcome.Verified ? "done" : "reboot");
                 Log(pending.Session);
             }
@@ -230,8 +233,9 @@ public partial class MainWindow : Window
     private void Navigate(object sender, RoutedEventArgs e)
     {
         if (!IsLoaded) return; var name = ((RadioButton)sender).Tag.ToString();
-        foreach (var pair in new[] { (HomePage, "Home"), (LibraryPage, "Library"), (RecoveryPage, "Recovery"), (DiagnosticsPage, "Diagnostics"), (SettingsPage, "Settings") }) pair.Item1.Visibility = pair.Item2 == name ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var pair in new[] { (HomePage, "Home"), (CleanupPage, "Cleanup"), (LibraryPage, "Library"), (RecoveryPage, "Recovery"), (DiagnosticsPage, "Diagnostics"), (SettingsPage, "Settings") }) pair.Item1.Visibility = pair.Item2 == name ? Visibility.Visible : Visibility.Collapsed;
         PageTitle.Text = T(name!.ToLowerInvariant()); PageScroll.ScrollToTop(); RefreshFiles();
+        if (name == "Cleanup" && cleanupInventory is null && !busy) _ = Guard(AnalyzeCleanupAsync);
     }
     private void PopulatePreferences()
     {
@@ -241,14 +245,16 @@ public partial class MainWindow : Window
         LanguageBox.SelectedIndex = Array.IndexOf(new[] { "auto", "es", "en", "pt", "fr", "de", "it" }, preferences.Language); if (LanguageBox.SelectedIndex < 0) LanguageBox.SelectedIndex = 0;
         ThemeBox.ItemsSource = new[] { new Choice(T("systemTheme"), "auto"), new Choice(T("dark"), "dark"), new Choice(T("light"), "light") };
         ThemeBox.SelectedIndex = Array.IndexOf(new[] { "auto", "dark", "light" }, preferences.Theme); if (ThemeBox.SelectedIndex < 0) ThemeBox.SelectedIndex = 0;
-        SourceBox.ItemsSource = new[] { T("autoDetect"), "NVIDIA", "AMD", "Intel" }; SourceBox.SelectedIndex = Math.Clamp(preferences.Source, 0, 3); populating = false;
+        SourceBox.ItemsSource = new[] { T("autoDetect"), "NVIDIA", "AMD", "Intel" }; SourceBox.SelectedIndex = Math.Clamp(preferences.Source, 0, 3);
+        DeepCleanBox.IsChecked = preferences.DeepClean; populating = false;
     }
+    private void DeepCleanChanged(object sender, RoutedEventArgs e) => PreferenceChanged(sender, null!);
     private void PreferenceChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!IsLoaded || populating || busy) return;
-        preferences = new((LanguageBox.SelectedItem as Choice)?.Value ?? "auto", (ThemeBox.SelectedItem as Choice)?.Value ?? "auto", SourceBox.SelectedIndex);
-        dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); SetFrame(); RefreshFiles(); Status.Text = T("ready");
-        PageTitle.Text = T(HomePage.Visibility == Visibility.Visible ? "home" : LibraryPage.Visibility == Visibility.Visible ? "library" : RecoveryPage.Visibility == Visibility.Visible ? "recovery" : DiagnosticsPage.Visibility == Visibility.Visible ? "diagnostics" : "settings");
+        if (!IsLoaded || populating || busy) { if (busy) DeepCleanBox.IsChecked = preferences.DeepClean; return; }
+        preferences = new((LanguageBox.SelectedItem as Choice)?.Value ?? "auto", (ThemeBox.SelectedItem as Choice)?.Value ?? "auto", SourceBox.SelectedIndex, DeepCleanBox.IsChecked == true);
+        dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); RelabelCleanup(); SetFrame(); RefreshFiles(); Status.Text = T("ready");
+        PageTitle.Text = T(HomePage.Visibility == Visibility.Visible ? "home" : CleanupPage.Visibility == Visibility.Visible ? "cleanup" : LibraryPage.Visibility == Visibility.Visible ? "library" : RecoveryPage.Visibility == Visibility.Visible ? "recovery" : DiagnosticsPage.Visibility == Visibility.Visible ? "diagnostics" : "settings");
         try { if (!Demo) preferences.Save(); } catch (Exception ex) { Status.Text = T("failed"); Log(ex.Message); }
     }
     private void RefreshFiles()

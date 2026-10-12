@@ -1,6 +1,6 @@
 # Recuperación
 
-Los respaldos se crean antes de cada instalación o limpieza. Están en `%LOCALAPPDATA%\Swap\Sessions\<sesión>\backup`; en modo USB, `Data\Sessions`. No sustituyen una copia del sistema ni de tus archivos.
+Los respaldos se crean antes de cada instalación o limpieza. Los del cambio de driver están en `%LOCALAPPDATA%\Swap\Sessions\<sesión>\backup` (en modo USB, `Data\Sessions`); los de la limpieza profunda, en `%ProgramData%\Swap\Cleanup`. No sustituyen una copia del sistema ni de tus archivos.
 
 ## Cambio detenido o reinicio pendiente
 
@@ -13,6 +13,14 @@ Los respaldos se crean antes de cada instalación o limpieza. Están en `%LOCALA
 Windows decide qué driver puede activarse. Si el antiguo tiene menor prioridad, Swap informa el resultado pendiente y no fuerza su activación. Para un downgrade deliberado usa la opción Revertir al controlador anterior del Administrador de dispositivos, si existe, o las instrucciones del fabricante. Un INF no restaura aplicaciones, audio HDMI ni perfiles.
 
 Las entradas demo son ficticias y no se pueden restaurar en tu equipo. Si el catálogo no ofrece un paquete y la GPU sigue con Basic Display o error PnP, no se elimina nada; importa el driver oficial/OEM firmado o consulta soporte del equipo.
+
+## Deshacer una limpieza profunda
+
+1. Abre **Limpieza** y pulsa **Deshacer la última limpieza**. Swap restaura, del más reciente al más antiguo, las claves de registro y entradas de Programas, servicios, tareas, inicios automáticos, carpetas en cuarentena y paquetes de driver (se vuelven a añadir al almacén).
+2. Reinicia para que Windows vuelva a cargar los servicios restaurados.
+3. No vuelven por esta vía: entradas de dispositivos desconectados (Windows las crea de nuevo si el hardware regresa), apps de la Tienda (reinstálalas desde la Tienda) y cachés (se regeneran).
+
+Los respaldos están en `%ProgramData%\Swap\Cleanup\<sesión>`, accesibles solo para administradores. Si una cuarentena fue modificada, no se restaura y la sesión lo indica. Para liberar ese espacio cuando ya no necesites deshacer, borra la carpeta de esa sesión como administrador. Windows también conserva el punto de restauración creado antes de la limpieza, si la protección del sistema está activa.
 
 ## Sin escritorio operativo
 

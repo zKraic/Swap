@@ -309,6 +309,33 @@ await Test("Preparation assessment preserves recovery packages and reports pendi
     Assert(!Preparation.Assess(clean,active,f.Source,f.Target,true,false).Ready);
     Assert(!Preparation.Assess(clean,null,f.Source,f.Target,true,true).Ready);return Task.CompletedTask;
 });
+await DeepCleanTests.RunAsync(Test, (value, message) => Assert(value, message), root);
+foreach(var mode in new[]{"install","maintenance","resume"}) await Test("Disconnected old GPU is removed before its package ("+mode+")",async()=>{
+    var f=Fake.Standard();f.Before=f.Before with {Phantoms=[new("NVIDIA GeForce RTX 3070",@"PCI\VEN_10DE&DEV_2484\OLD",Vendor.Nvidia,"oem42.inf","",0,false)]};var s=Session();
+    if(mode=="resume"){f.InstallCode=3010;await new Engine(f).RunAsync(Plan(f),s,_=>{});f.BootId="BOOT-2";Assert((await new Continuation(f).RunAsync(s,_=>{})).Verified);}
+    else Assert((mode=="install"?await new Engine(f).RunAsync(Plan(f),s,_=>{}):await new Maintenance(f).RunAsync(f.Before,f.Source,f.Target,s,_=>{})).Verified);
+    var removed=f.Calls.IndexOf(@"remove-device:PCI\VEN_10DE&DEV_2484\OLD");Assert(removed>=0&&removed<f.Calls.IndexOf("delete:oem42.inf"),string.Join(",",f.Calls));
+});
+await Test("A disconnected GPU that Windows keeps blocks deletion of its package",async()=>{
+    foreach(var maintenance in new[]{false,true}){var f=Fake.Standard();f.RemoveDeviceCode=1;f.Before=f.Before with {Phantoms=[new("Old",@"PCI\VEN_10DE&DEV_2484\OLD",Vendor.Nvidia,"oem42.inf","",0,false)]};
+    await RejectAsync(()=>maintenance?new Maintenance(f).RunAsync(f.Before,f.Source,f.Target,Session(),_=>{}):new Engine(f).RunAsync(Plan(f),Session(),_=>{}));Assert(!f.Calls.Any(c=>c.StartsWith("delete")));}
+});if(args.Contains("--cleanup-inventory-readonly")) await Test("Real deep-cleanup inventory READ ONLY",async()=>{
+    var s=System.Diagnostics.Stopwatch.StartNew();var inv=await new WindowsCleanupPlatform().InventoryAsync();
+    Console.WriteLine($"Remnant inventory in {s.Elapsed.TotalSeconds:0.0}s: admin={inv.Admin}; complete={inv.Complete}; devices={inv.Devices.Count} (disconnected {inv.Devices.Count(d=>!d.Present)}); packages={inv.Packages.Count}; services={inv.Services.Count}; tasks={inv.Tasks.Count}; startup={inv.Startup.Count}; apps={inv.Apps.Count}; folders={inv.Folders.Count}; keys={inv.RegistryKeys.Count}; processes={inv.Processes.Count}; cpu={inv.CpuName}");
+    Console.WriteLine("Connected GPU brands: "+string.Join(",",DeepCleanPlanner.PresentGpuVendors(inv)));
+    foreach(var d in inv.Devices.Where(d=>d.HardwareIds.Any(id=>DeepCleanPlanner.InDomain(Vendor.Nvidia,id)||DeepCleanPlanner.InDomain(Vendor.Amd,id))))Console.WriteLine($"  gpu-domain device present={d.Present} {d.Class} {d.Inf} {d.Id}");
+    foreach(var f in inv.Folders)Console.WriteLine($"  folder {f.Location} -> {f.Path} ({f.Bytes/1048576} MB)");
+    Assert(inv.Devices.Count>20&&inv.Services.Count>50&&inv.Processes.Count>10);
+});
+if(args.Contains("--graphics-readonly")) await Test("Real graphics, PCIe link and display modes READ ONLY",async()=>{
+    var d=await GraphicsInspector.ReadAsync();
+    foreach(var x in d.Displays)Console.WriteLine($"  display {x.Name} {x.Width}x{x.Height} {x.Hz} Hz (max {x.MaximumHz} Hz)");
+    foreach(var l in d.Links??[])Console.WriteLine($"  pcie {l.AdapterId}: x{l.Width}/x{l.MaxWidth} gen {l.Speed}/{l.MaxSpeed}");
+    Console.WriteLine($"Graphics: displays={d.Displays.Count}; probes={d.Probes.Count}; links={(d.Links??[]).Count}; eventsComplete={d.EventsComplete}. No mode changes.");
+    Assert(d.DisplaysComplete&&d.EventsComplete);
+});
+var lab=args.FirstOrDefault(a=>a.StartsWith("--deep-clean-lab="))?[17..];
+if(lab is not null) await LabTests.RunAsync(Test,(value,message)=>Assert(value,message),lab,root);
 if(args.Contains("--graphics-native")) await Test("Real isolated guest display, Direct3D enumeration and recent events",async()=>{
     if(Environment.MachineName!="SWAPTESTVM" && Environment.UserName!="WDAGUtilityAccount")throw new InvalidOperationException("Native graphics testing belongs in the private guest.");
     var d=await GraphicsInspector.ReadAsync();Assert(d.DisplaysComplete&&d.Displays.Count>0&&d.Probes.Count>0&&d.EventsComplete);
@@ -357,4 +384,6 @@ sealed class Fake(Vendor source, Vendor target) : IPlatform
     public Task<CommandResult> InstallAsync(Package p) { Calls.Add("install"); installed = !NoInstall && InstallCode is 0 or 3010; return Task.FromResult(new CommandResult(InstallCode, "installed")); }
     public Task<CommandResult> DeleteAsync(string inf) { Calls.Add("delete:" + inf); if(!NoDelete&&DeleteCode==0)deletedInfs.Add(inf); OnDelete?.Invoke(); return Task.FromResult(new CommandResult(DeleteCode, "deleted")); }
     public Task<string> RestorePointAsync() { Calls.Add("restore-point"); OnRestorePoint?.Invoke(); return Task.FromResult("simulated restore point"); }
+    public int RemoveDeviceCode;
+    public Task<CommandResult> RemoveDeviceAsync(string id) { Calls.Add("remove-device:" + id); if (RemoveDeviceCode == 0) Before = Before with { Phantoms = Before.Disconnected.Where(p => p.Id != id).ToArray() }; return Task.FromResult(new CommandResult(RemoveDeviceCode, "removed")); }
 }

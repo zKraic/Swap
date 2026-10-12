@@ -4,8 +4,11 @@ namespace Swap.Core;
 public sealed record DisplayOutput(string Key, string Name, string AdapterId, int Width, int Height, int Hz, int MaximumHz);
 public sealed record GraphicsProbe(string HardwareId, string Name, long DedicatedBytes, bool Hardware, bool Direct3D, int FeatureLevel, string Error);
 public sealed record DisplayIncident(DateTimeOffset Time, string Provider, int Id, string Kind);
+// PCI Express link of a connected GPU. Speed drops at idle by design; width does not, so only width is judged.
+public sealed record PcieLink(string AdapterId, int Width, int MaxWidth, int Speed, int MaxSpeed);
 public sealed record GraphicsDiagnostics(DateTimeOffset Generated, IReadOnlyList<DisplayOutput> Displays,
-    IReadOnlyList<GraphicsProbe> Probes, IReadOnlyList<DisplayIncident> Incidents, bool DisplaysComplete, bool EventsComplete, IReadOnlyList<string> Warnings);
+    IReadOnlyList<GraphicsProbe> Probes, IReadOnlyList<DisplayIncident> Incidents, bool DisplaysComplete, bool EventsComplete, IReadOnlyList<string> Warnings,
+    IReadOnlyList<PcieLink>? Links = null);
 public sealed record HealthFinding(string Code, string Detail, bool Attention = false);
 public sealed record GraphicsCheckpoint(int Schema, string MachineId, bool Simulated, DateTimeOffset Generated,
     IReadOnlyList<Adapter> Adapters, IReadOnlyList<DisplayOutput> Displays);
@@ -32,6 +35,10 @@ public static class GraphicsHealth
         }
         if (!diagnostics.EventsComplete) items.Add(new("eventsUnknown", ""));
         else items.Add(new(diagnostics.Incidents.Count == 0 ? "noDisplayErrors" : "displayErrors", diagnostics.Incidents.Count.ToString(), diagnostics.Incidents.Count > 0));
+        var link = (diagnostics.Links ?? []).FirstOrDefault(l => l.AdapterId.Equals(adapter.Id, StringComparison.OrdinalIgnoreCase));
+        if (link is { MaxWidth: > 0, Width: > 0 })
+            items.Add(link.Width < link.MaxWidth ? new("pcieReduced", $"x{link.Width} / x{link.MaxWidth}", true)
+                : new("pcieLink", $"x{link.Width} · Gen {link.Speed} / Gen {Math.Max(link.Speed, link.MaxSpeed)}"));
         return items;
     }
 

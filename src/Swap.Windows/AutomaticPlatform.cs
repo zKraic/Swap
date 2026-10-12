@@ -58,5 +58,6 @@ public sealed class AutomaticPlatform : IPlatform
     public Task<CommandResult> ExportAsync(string inf, string destination) => windows.ExportAsync(inf, destination);
     public Task<CommandResult> InstallAsync(Package package) => package.IsWindowsUpdate ? ApplyAsync(package, false) : windows.InstallAsync(package);
     public Task<CommandResult> DeleteAsync(string inf) => windows.DeleteAsync(inf);
+    public Task<CommandResult> RemoveDeviceAsync(string instanceId) => windows.RemoveDeviceAsync(instanceId);
     public Task<string> RestorePointAsync() => windows.RestorePointAsync();
 }

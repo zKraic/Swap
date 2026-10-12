@@ -4,8 +4,11 @@ Swap solicita UAC al abrir normalmente; no almacena credenciales ni automatiza l
 
 ## Protección de operaciones
 
-- Solo drivers de clase Display. Los nombres OEM admiten exclusivamente `oem` más dígitos ASCII y `.inf`; no comodines, rutas o argumentos añadidos.
-- No `/force`, `/uninstall`, reinicios automáticos ni cambios de arranque, seguridad, red, clocks, voltajes, registro de gráficos o políticas Windows Update.
+- El cambio automático solo instala y retira drivers de clase Display. Los nombres OEM admiten exclusivamente `oem` más dígitos ASCII y `.inf`; no comodines, rutas o argumentos añadidos.
+- No `/force`, `/uninstall`, reinicios automáticos ni cambios de arranque, modo seguro, seguridad, red, clocks, voltajes o políticas Windows Update. Solo se retira la entrada de un dispositivo **desconectado** de la marca retirada cuando Windows lo exige para borrar su paquete; un dispositivo conectado nunca se retira.
+- Limpieza profunda: solo marcas sin hardware conectado, con evidencia de hardware (IDs de instancia e INF) y listas fijas de ubicaciones, servicios, apps y claves por marca. Antes de cada cambio exporta paquetes y registro, guarda tareas e inicios y mueve carpetas a una cuarentena sellada con SHA-256. Rechaza raíces de unidad, Windows, Program Files, perfiles y enlaces; no sigue uniones al borrar cachés.
+- Los respaldos que pueden restaurar servicios o registro viven en `%ProgramData%\Swap\Cleanup`, con ACL protegida para Administradores y SYSTEM; si la carpeta existe con otro propietario o es un enlace, la limpieza se detiene. Deshacer lee el manifiesto de esa carpeta y no acepta rutas fuera de ella; una cuarentena alterada no se restaura.
+- Desinstaladores opcionales del fabricante: solo entradas de HKLM cuyo programa está en Program Files o Windows, o productos Windows Installer por GUID. Nunca entradas de HKCU (escribibles sin elevación).
 - WUA busca en el servicio configurado, identifica ofertas aplicables por ID de hardware real y vuelve a comprobar identidad, revisión y metadatos antes del uso. No instala otras actualizaciones de Windows ni acepta archivos arbitrarios como ofertas.
 - La descarga usa Windows Update, cuya validación de confianza y transporte administra Windows. No hay scraping ni mirrors en el flujo principal.
 - Importación: INF Display, catálogo local sin traversal, firma de confianza, versión e IDs compatibles. EXE firmado del fabricante y metadatos reconocidos. Firma no equivale a compatibilidad ni estabilidad.
