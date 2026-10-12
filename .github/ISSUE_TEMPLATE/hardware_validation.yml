@@ -1,0 +1,46 @@
+name: Hardware validation
+description: Report an observed GPU transition or a reproducible compatibility problem.
+title: "[Hardware] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        KraicDev · Swap. Report tests you actually performed. Demo/VM results do not validate a physical GPU change. Issues are public: review attachments and remove account names, machine UUIDs, serial numbers and private paths.
+  - type: input
+    id: version
+    attributes:
+      label: Swap version and Windows build
+      placeholder: "Swap 0.4.2 preview; Windows 11 x64, build ..."
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Previous and currently connected graphics cards
+      placeholder: "Previous NVIDIA model → currently connected AMD model; desktop / laptop / multiple GPUs"
+    validations:
+      required: true
+  - type: dropdown
+    id: operation
+    attributes:
+      label: Operation actually tested
+      options:
+        - Demo or virtual machine only
+        - Physical GPU transition using Windows Update
+        - Maintenance with an already healthy driver
+        - Backup or diagnostics only
+        - Imported official driver package
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Observed result and reproducible steps
+      description: "State whether the new card was already connected. Include the offered/active driver version, whether installation ran, cleanup outcome and any restart. Separate actual observations from assumptions."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reviewed evidence
+      description: "Attach the exported diagnostic report or relevant preparation.json fields after reviewing them. Specify what was retained and why. Do not upload entire recovery backups or VM disks."

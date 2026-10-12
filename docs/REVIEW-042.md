@@ -12,4 +12,6 @@ Eight new regression cases cover receipts in all three paths, three final Direct
 
 This does not remove every file associated with a former vendor. Shared components, current-brand recovery drivers, present GPUs, OEM/hybrid dependencies, HDMI audio, chipset, services and vendor applications are intentionally preserved. Full manufacturer suites, physical GPU replacements and games require separate validation. Windows may require a driver restart; Swap itself remains a portable EXE.
 
-No paid promotion, purchased engagement or fabricated testimonials are used. Public demonstrations identify simulated hardware and the unsigned experimental preview.
+No paid promotion, purchased engagement or fabricated testimonials are used. Public demonstrations identify simulated hardware and the unsigned experimental preview. TikTok's own-brand disclosure is enabled for the launch video, following its [official promotion requirements](https://support.tiktok.com/en/business-and-creator/creator-and-business-accounts/promoting-a-brand-product-or-service). Publication remains subject to moderation.
+
+Cleanup continues to use Windows Driver Store package operations rather than indiscriminate file deletion. Microsoft documents the distinction between [removing a device and removing its driver package](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/using-device-manager-to-uninstall-devices-and-driver-packages).
