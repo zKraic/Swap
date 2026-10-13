@@ -46,7 +46,7 @@ The same page can remove **older unused versions of the current driver** (often 
 
 ## Download and open
 
-1. Download **[Swap.exe 0.5.0 preview](https://github.com/zKraic/Swap/releases/download/v0.5.0-preview/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.5.0-preview/Swap.exe.sha256) (`C4D1FCD8…3062F6`). [Release notes](https://github.com/zKraic/Swap/releases/tag/v0.5.0-preview).
+1. Download **[Swap.exe 0.6.0 preview](https://github.com/zKraic/Swap/releases/download/v0.6.0-preview/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.6.0-preview/Swap.exe.sha256) (`CE5BF7F8…2D825CC`). [Release notes](https://github.com/zKraic/Swap/releases/tag/v0.6.0-preview).
 2. Open it and accept Windows administrator permissions. No Swap installer, ZIP or separate .NET installation.
 3. Review the detected card and choose an operation. Diagnostics need no reboot. Windows may require one after a driver change; Swap saves the session and preserves pending packages.
 
@@ -83,4 +83,4 @@ Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Distributed modif
 
 Official repository: **[zKraic/Swap](https://github.com/zKraic/Swap)**. NVIDIA, AMD, Intel and Microsoft do not sponsor or certify Swap. Their drivers are not bundled. Display Driver Uninstaller is an independent project by Wagnardsoft; it is not used or included, and was run only inside an isolated virtual machine for the published comparison. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Privacy](docs/PRIVACY.md) · [Code signing policy](docs/SIGNING.md).
 
-0.5.0 adds deep cleanup, fixes cleanup after a real card removal, and adds PCIe-lane and refresh-rate checks. [Changelog](CHANGELOG.md) · [Community and hardware results](docs/COMMUNITY.md).
+0.6.0 adds the guided card change, the Direct3D 12/Vulkan/OpenCL games check, the validation report and a deeper cleanup measured against DDU. [Changelog](CHANGELOG.md) · [Community and hardware results](docs/COMMUNITY.md).
