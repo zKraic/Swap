@@ -41,7 +41,7 @@ After a swap Windows often runs the monitor at 60 Hz; Diagnostics offers the hig
 
 ## Download and open
 
-1. Download the latest **Swap.exe** and its SHA-256 from [Releases](https://github.com/zKraic/Swap/releases).
+1. Download **[Swap.exe 0.5.0 preview](https://github.com/zKraic/Swap/releases/download/v0.5.0-preview/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.5.0-preview/Swap.exe.sha256) (`C4D1FCD8…3062F6`). [Release notes](https://github.com/zKraic/Swap/releases/tag/v0.5.0-preview).
 2. Open it and accept Windows administrator permissions. No Swap installer, ZIP or separate .NET installation.
 3. Review the detected card and choose an operation. Diagnostics need no reboot. Windows may require one after a driver change; Swap saves the session and preserves pending packages.
 

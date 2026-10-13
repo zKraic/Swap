@@ -20,7 +20,7 @@ The exact GitHub Actions executable passed isolated Windows validation. **Experi
 | Host Display drivers / host restart | Unchanged / none |
 | Authenticode | Not signed; free provider review pending |
 
-[Exact CI build](https://github.com/zKraic/Swap/actions/runs/38316687325) · [Machine-readable evidence](v050-result.json) · [Review](../REVIEW-050.md) · [Physical validation tracker](https://github.com/zKraic/Swap/issues/3).
+[Published release](https://github.com/zKraic/Swap/releases/tag/v0.5.0-preview) (asset re-downloaded anonymously after publication; identical SHA-256) · [Exact CI build](https://github.com/zKraic/Swap/actions/runs/38316687325) · [Machine-readable evidence](v050-result.json) · [Review](../REVIEW-050.md) · [Physical validation tracker](https://github.com/zKraic/Swap/issues/3).
 
 The CI archive and its SHA-256 were checked before copying the executable to read-only VM media; the guest checked the same hash again. The guest ran as SYSTEM in a non-interactive session because no account was signed in; the WPF audit rendered all 155 cases there, while display enumeration in that session reports no monitors and was recorded as a read-only observation.
 

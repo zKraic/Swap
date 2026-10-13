@@ -8,6 +8,8 @@ Also new: removal of older unused versions of the current driver (keeps the acti
 
 **Experimental preview for Windows 10/11 x64.** Driver installation uses a simulated backend in tests; physical GPU replacement and games are not certified. Start with diagnostics or demo mode. Remote sessions and pending servicing restarts block driver changes.
 
+**Exact executable validated.** SHA-256 `C4D1FCD857E633DBC688D917B9AB8D5AB36FD49D2F2EA52AE123FB455B3062F6` (source `7e87ef2`) passed 175/175 logic tests in CI and, in an isolated Windows 10 guest, 180/180 checks including the real deep-cleanup lab with undo, 155/155 rendered interface cases and 12 environment and identity checks.
+
 Download **Swap.exe** directly. No Swap installer, ZIP or separate .NET installation is required. Windows administrator permission is required; Windows may require a restart after changing a driver.
 
 **Unsigned:** Windows will show an unknown publisher. The free SignPath Foundation application has been submitted; provider review and trusted signing remain pending. See the [Code signing policy](https://github.com/zKraic/Swap/blob/main/docs/SIGNING.md).

@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: Swap version and Windows build
-      placeholder: "Swap 0.4.2 preview; Windows 11 x64, build ..."
+      placeholder: "Swap 0.5.0 preview; Windows 11 x64, build ..."
     validations:
       required: true
   - type: input
@@ -28,6 +28,9 @@ body:
         - Demo or virtual machine only
         - Physical GPU transition using Windows Update
         - Maintenance with an already healthy driver
+        - Deep cleanup of a disconnected brand
+        - Undo of a deep cleanup
+        - Removal of older versions of the current driver
         - Backup or diagnostics only
         - Imported official driver package
     validations:
@@ -43,4 +46,4 @@ body:
     id: evidence
     attributes:
       label: Reviewed evidence
-      description: "Attach the exported diagnostic report or relevant preparation.json fields after reviewing them. Specify what was retained and why. Do not upload entire recovery backups or VM disks."
+      description: "Attach the exported diagnostic report, relevant preparation.json fields or cleanup-results.json (deep cleanup) after reviewing them. Specify what was retained and why. Do not upload entire recovery backups or VM disks."

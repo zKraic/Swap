@@ -8,7 +8,7 @@ assignees: ''
 
 Versión de Swap y Windows:
 GPU anterior / nueva (modelo completo):
-Modo usado (demo / INF / EXE):
+Modo usado (demo / Windows Update / INF / EXE / limpieza profunda / deshacer limpieza):
 Resultado esperado:
 Resultado observado:
 Pasos para reproducir:

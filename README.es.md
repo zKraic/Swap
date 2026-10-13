@@ -31,7 +31,7 @@ La misma página retira **versiones antiguas sin uso del driver actual** (a menu
 
 **Diagnóstico** ahora detecta una tarjeta con menos carriles PCIe de los que admite (ranura equivocada o mal encajada) y ofrece la frecuencia máxima del monitor, que tras un cambio suele quedar en 60 Hz, con confirmación de 15 segundos para mantener o revertir. **Crear respaldo** exporta los drivers gráficos sin modificarlos.
 
-Descarga **Swap.exe** desde [Releases](https://github.com/zKraic/Swap/releases), ábrelo y acepta UAC. No hay instalador de Swap ni ZIP ni instalación separada de .NET. El diagnóstico no necesita reiniciar; Windows puede exigirlo después de cambiar drivers. Swap guarda la sesión y conserva lo pendiente.
+Descarga **[Swap.exe 0.5.0](https://github.com/zKraic/Swap/releases/download/v0.5.0-preview/Swap.exe)** y, si quieres, su [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.5.0-preview/Swap.exe.sha256) (`C4D1FCD8…3062F6`); [notas de la versión](https://github.com/zKraic/Swap/releases/tag/v0.5.0-preview). Ábrelo y acepta UAC. No hay instalador de Swap ni ZIP ni instalación separada de .NET. El diagnóstico no necesita reiniciar; Windows puede exigirlo después de cambiar drivers. Swap guarda la sesión y conserva lo pendiente.
 
 Windows 10/11 x64, PowerShell 5.1, conexión y Windows Update operativo para descarga automática. 4 GB libres más el espacio del driver. No instala toda la suite del fabricante ni fuerza retiradas, modo seguro o ajustes de juegos. Bloquea cambios en RDP, mientras se ejecutan herramientas remotas conocidas (incluido TeamViewer inactivo) y ante reinicios pendientes de Windows. El diagnóstico y respaldo independiente siguen disponibles. Si hay varias gráficas candidatas, exige elegir la nueva.
 
