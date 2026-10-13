@@ -1,0 +1,83 @@
+{
+    "author":  "KraicDev",
+    "version":  "0.6.0-preview",
+    "sourceCommit":  "db194eeaff4c0e3972d7dc23fff4302229c07de4",
+    "appSha256":  "CE5BF7F858E1B0D25111C12E15321880596D62562B8C73E06D04034062D825CC",
+    "bytes":  65834128,
+    "authenticode":  "NotSigned",
+    "releaseStatus":  "Experimental preview; exact CI executable passed isolated Windows validation",
+    "ci":  {
+               "run":  "https://github.com/zKraic/Swap/actions/runs/38386927934",
+               "passed":  190,
+               "failed":  0
+           },
+    "isolatedWindows":  {
+                            "status":  "passed",
+                            "completed":  true,
+                            "os":  "Microsoft Windows 10 Enterprise LTSC Evaluation",
+                            "osVersion":  "10.0.19044",
+                            "guestContext":  "SYSTEM account, non-interactive session",
+                            "preinstalledDotnet":  false,
+                            "network":  false,
+                            "physicalGpuPassthrough":  false,
+                            "corePassed":  196,
+                            "coreFailed":  0,
+                            "uiPassed":  157,
+                            "uiFailed":  0,
+                            "checksPassed":  12,
+                            "captures":  47,
+                            "initialWindowFits":  true,
+                            "guestFlags":  "--windows-readonly --graphics-readonly --cleanup-inventory-readonly --api-probe-readonly --resume-registration --deep-clean-lab; Swap.exe --ui-audit",
+                            "phases":  "Logic, native probes and lab in one boot; WPF audit after a restart of the same clean guest (the evaluation image powers off hourly)",
+                            "apiProbe":  "Completed in 4.3 s; Basic Display Adapter: no hardware Direct3D 12 device, Vulkan and OpenCL loaders missing",
+                            "deepCleanupLab":  {
+                                                   "realSignedPackages":  [
+                                                                              "nvhda.inf (MEDIA)",
+                                                                              "nvpcf.inf (SoftwareDevice)",
+                                                                              "nvppc.inf (USB, boot-critical class, opt-in)",
+                                                                              "nvvad.inf (MEDIA)"
+                                                                          ],
+                                                   "removed":  16,
+                                                   "restored":  14,
+                                                   "failed":  0,
+                                                   "administratorOnlyBackupAcl":  true
+                                               },
+                            "hostDisplayUnchanged":  true,
+                            "hostRestart":  false,
+                            "exportMethod":  "Guest agent read of the guest reports after completion"
+                        },
+    "comparisonWithDdu":  {
+                              "document":  "docs/COMPARISON-DDU.md",
+                              "driver":  "AMD u0202828.inf 31.0.21924.13002 (Microsoft Update Catalog)",
+                              "ddu":  "18.1.5.3 default AMD cleanup",
+                              "leftByDdu":  {
+                                                "packages":  1,
+                                                "deviceIds":  36,
+                                                "registryValues":  57,
+                                                "system32Files":  1,
+                                                "comClasses":  0
+                                            },
+                              "leftBySwap":  {
+                                                 "packages":  0,
+                                                 "deviceIds":  0,
+                                                 "registryValues":  0,
+                                                 "system32Files":  0,
+                                                 "comClasses":  1
+                                             },
+                              "preexistingRemoved":  {
+                                                         "ddu":  0,
+                                                         "swap":  0
+                                                     },
+                              "swapUndo":  {
+                                               "restored":  98,
+                                               "skipped":  94,
+                                               "failed":  0
+                                           }
+                          },
+    "scope":  "Exact CI executable in an isolated Windows guest: WPF rendering, simulated transitions and card change, read-only native observations including the graphics API check, and a destructive deep-cleanup lab with real signed driver packages. No physical GPU, cable, power, FPS or game certification.",
+    "physicalGpuInstallationRemoval":  "not-tested",
+    "games":  "not-tested",
+    "realWindowsUpdateDownload":  "not-tested",
+    "interactivePostRestartContinuation":  "not-tested",
+    "windows11Hardware":  "not-tested"
+}

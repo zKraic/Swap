@@ -4,7 +4,7 @@
 
 **Prepare Windows after connecting a graphics card of another brand.** NVIDIA, AMD and Intel Arc. Installs the new driver, then removes what the old card left behind, with a backup and an undo button. Free, open source, no account or subscription.
 
-> **Experimental preview · Windows 10/11 x64.** Driver installation has been tested with a simulated backend, not a physical GPU replacement. Deep cleanup and the disconnected-device fix were exercised on an isolated Windows 10 guest with real signed driver packages. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V050-RESULTS.md) · [Code signing policy](docs/SIGNING.md).
+> **Experimental preview · Windows 10/11 x64.** Driver installation and the guided card change have been tested with a simulated backend, not a physical GPU replacement or games. Deep cleanup was exercised on an isolated Windows 10 guest with real signed driver packages and measured against Display Driver Uninstaller with the official AMD display driver. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V060-RESULTS.md) · [Comparison with DDU](docs/COMPARISON-DDU.md) · [Code signing policy](docs/SIGNING.md).
 
 ![Actual Swap interface in demo mode](.github/media/app-dark-en.png)
 

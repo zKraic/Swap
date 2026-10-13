@@ -10,7 +10,7 @@ Use Swap **after connecting the new graphics card** — or, new in 0.6.0, **befo
 
 **Experimental preview for Windows 10/11 x64.** Physical GPU replacement and games are not yet confirmed on real hardware; the comparison is one driver in one virtual machine. Start with diagnostics or demo mode. Remote sessions and pending servicing restarts block driver changes.
 
-**Exact executable validated.** __VALIDATION__
+**Exact executable validated.** SHA-256 `CE5BF7F858E1B0D25111C12E15321880596D62562B8C73E06D04034062D825CC` (source `db194ee`) passed 190/190 logic tests in CI and, in an isolated Windows 10 guest, 196/196 checks including the graphics API check and the real deep-cleanup lab with undo, 157/157 rendered interface cases (games panel and guided card change included) and 12 environment and identity checks. Validating this build in a slow guest found and fixed three robustness problems on slow PCs.
 
 Download **Swap.exe** directly. No Swap installer, ZIP or separate .NET installation is required. Windows administrator permission is required; Windows may require a restart after changing a driver.
 

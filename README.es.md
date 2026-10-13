@@ -4,7 +4,7 @@
 
 [Página](https://zkraic.github.io/Swap/) · [Descargar](https://github.com/zKraic/Swap/releases) · [English](README.md)
 
-**Versión experimental 0.5.0.** La instalación se probó con un backend simulado. La limpieza profunda y la corrección del dispositivo desconectado se probaron en un Windows 10 aislado con paquetes de driver firmados reales. Falta validar un cambio físico de tarjeta; la firma depende de aprobación externa. [Resultados](docs/validation/V050-RESULTS.md).
+**Versión experimental 0.6.0.** La instalación y el cambio guiado se probaron con un backend simulado. La limpieza profunda se probó en un Windows 10 aislado con paquetes de driver firmados reales y se midió frente a Display Driver Uninstaller con el driver oficial de AMD. Falta validar un cambio físico de tarjeta y juegos; la firma depende de aprobación externa. [Resultados](docs/validation/V060-RESULTS.md) · [Comparación con DDU](docs/COMPARISON-DDU.md).
 
 ![Interfaz real de Swap en modo demo](.github/media/app-dark.png)
 
