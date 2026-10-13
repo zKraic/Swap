@@ -5,7 +5,8 @@ $admin = ([Security.Principal.WindowsPrincipal]$identity).IsInRole([Security.Pri
 $os = Get-CimInstance Win32_OperatingSystem
 $system = Get-CimInstance Win32_ComputerSystem
 $chassis = Get-CimInstance Win32_SystemEnclosure
-$signed = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceClass -eq 'DISPLAY' })
+# Filter in WMI: enumerating every signed driver first takes minutes on slow PCs.
+$signed = @(Get-CimInstance Win32_PnPSignedDriver -Filter "DeviceClass='DISPLAY'")
 $devices = @(Get-PnpDevice -Class Display -PresentOnly -ErrorAction Stop)
 $adapters = @($devices | ForEach-Object {
     $device = $_

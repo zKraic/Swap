@@ -101,7 +101,8 @@ public static class GraphicsInspector
         try { (displays,probes)=await Task.Run(ReadNative);displaysComplete=true; } catch(Exception e){warnings.Add("Native graphics: "+e.GetType().Name);}
         try
         {
-            var result=JsonSerializer.Deserialize<EventsResult>(await WindowsPlatform.PowerShellAsync(WindowsPlatform.Script("HealthEvents")));
+            // Read-only event and PCIe queries; slow PCs may need minutes.
+            var result=JsonSerializer.Deserialize<EventsResult>(await WindowsPlatform.PowerShellAsync(WindowsPlatform.Script("HealthEvents"),600));
             if(result is not null){incidents=result.Incidents;eventsComplete=result.Complete;links=result.Links??[];}
         }
         catch(Exception e){warnings.Add("Display events: "+e.GetType().Name);}

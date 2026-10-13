@@ -50,7 +50,8 @@ public sealed partial class WindowsPlatform : IPlatform
         new[] { "AnyDesk", "rustdesk", "remoting_host", "parsecd" }.Contains(name, StringComparer.OrdinalIgnoreCase);
     public async Task<Snapshot> ScanAsync()
     {
-        var snapshot = JsonSerializer.Deserialize<Snapshot>(await PowerShellAsync(Script("Scan"))) ?? throw new IOException("Inventario vacío.");
+        // Read-only: a slow PC may need minutes; a late but complete inventory is still valid.
+        var snapshot = JsonSerializer.Deserialize<Snapshot>(await PowerShellAsync(Script("Scan"), 600)) ?? throw new IOException("Inventario vacío.");
         var processes = Process.GetProcesses();
         try
         {
