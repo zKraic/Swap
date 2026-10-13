@@ -1,0 +1,204 @@
+﻿{
+ "packages": {
+  "created": 4,
+  "left": [
+   "amdwddme.inf|Advanced Micro Devices, Inc.|Extension|31.0.21924.13002"
+  ],
+  "cleaned": 3,
+  "collateral": [],
+  "added": []
+ },
+ "storeFolders": {
+  "created": 4,
+  "left": [
+   "amdwddme.inf_amd64_9a5b2b2e8a74b36e"
+  ],
+  "cleaned": 3,
+  "collateral": [],
+  "added": []
+ },
+ "devices": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [
+   "PCI\\VEN_1002&DEV_5159&SUBSYS_11001AF4&REV_00\\3&267a616a&0&20"
+  ],
+  "added": []
+ },
+ "services": {
+  "created": 4,
+  "left": [],
+  "cleaned": 4,
+  "collateral": [],
+  "added": []
+ },
+ "system32": {
+  "created": 48,
+  "left": [
+   "System32\\CatRoot\\{F750E6C3-38EE-11D1-85E5-00C04FC295EE}\\oem5.cat|37468",
+   "System32\\spp\\store\\2.0\\cache\\cache.dat|86768"
+  ],
+  "cleaned": 46,
+  "collateral": [],
+  "added": []
+ },
+ "syswow64": {
+  "created": 28,
+  "left": [],
+  "cleaned": 28,
+  "collateral": [],
+  "added": []
+ },
+ "programDirs": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": [
+   "C:\\Program Files (x86)\\Display Driver Uninstaller",
+   "C:\\Program Files (x86)\\Display Driver Uninstaller\\DDU Logs",
+   "C:\\Program Files (x86)\\Display Driver Uninstaller\\Settings"
+  ]
+ },
+ "registry": {
+  "created": 914,
+  "left": [
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_10_sy1_10.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_10_sy1_10.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_10_sy1_10.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_10_sy1_10.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_20_sy1_20.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_20_sy1_20.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_20_sy1_20.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_20_sy1_20.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_30_sy1_30.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_30_sy1_30.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_30_sy1_30.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_30_sy1_30.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_40_sy1_40.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_40_sy1_40.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_40_sy1_40.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_40_sy1_40.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_50_sy1_50.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_50_sy1_50.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_50_sy1_50.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_50_sy1_50.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_60_sy1_60.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_60_sy1_60.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_60_sy1_60.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_60_sy1_60.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_70_sy1_70.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_70_sy1_70.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_70_sy1_70.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_70_sy1_70.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_80_sy1_80.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_80_sy1_80.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_80_sy1_80.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_80_sy1_80.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_90_sy1_90.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_90_sy1_90.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx1_90_sy1_90.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx1_90_sy1_90.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx2_00_sy2_00.bin|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx2_00_sy2_00.bin|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/H9_EASU_sx2_00_sy2_00.bin|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\H9_EASU_sx2_00_sy2_00.bin",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amdept.dat|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amdept.dat|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amdept.dat|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\amdept.dat",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amf-pa-ml32.dll|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amf-pa-ml32.dll|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amf-pa-ml32.dll|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\amf-pa-ml32.dll",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amf-pa-ml64.dll|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amf-pa-ml64.dll|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/amf-pa-ml64.dll|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\amf-pa-ml64.dll",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/ativvaxy_vcn4_0_a.dat|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/ativvaxy_vcn4_0_a.dat|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/ativvaxy_vcn4_0_a.dat|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\ativvaxy_vcn4_0_a.dat",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/featuresync.dll|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/featuresync.dll|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/featuresync.dll|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\featuresync.dll",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/libamdenc64.so|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/libamdenc64.so|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/libamdenc64.so|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\libamdenc64.so",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/regamdcomp.exe|Class=4",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/regamdcomp.exe|Owners=oem4.inf",
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\PnpLockdownFiles\\%SystemRoot%/System32/DriverStore/FileRepository/u0202828.inf_amd64_9cfe79f0f12c413e/B026278/regamdcomp.exe|Source=%SystemRoot%\\System32\\DriverStore\\FileRepository\\u0202828.inf_amd64_9cfe79f0f12c413e\\.\\B026278\\regamdcomp.exe",
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\DriverDatabase\\DriverPackages\\amdwddme.inf_amd64_9a5b2b2e8a74b36e\\Properties\\{4da162c1-5eb1-4140-a444-5064c9814e76}\\0009|",
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\DriverDatabase\\DriverPackages\\amdwddme.inf_amd64_9a5b2b2e8a74b36e\\Properties\\{4da162c1-5eb1-4140-a444-5064c9814e76}|",
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\DriverDatabase\\DriverPackages\\amdwddme.inf_amd64_9a5b2b2e8a74b36e\\Properties\\{8163eb01-142c-4f7a-94e1-a274cc47dbba}\\001F|",
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\DriverDatabase\\DriverPackages\\amdwddme.inf_amd64_9a5b2b2e8a74b36e\\Properties\\{8163eb01-142c-4f7a-94e1-a274cc47dbba}|",
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\DriverDatabase\\DriverPackages\\amdwddme.inf_amd64_9a5b2b2e8a74b36e\\Properties|",
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\DriverDatabase\\DriverPackages\\amdwddme.inf_amd64_9a5b2b2e8a74b36e|"
+  ],
+  "cleaned": 857,
+  "collateral": [],
+  "added": [
+   "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Display Driver Uninstaller|DisplayName=Display Driver Uninstaller",
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}|LastDeleteDate=3;119;126;1;218;90;221;1"
+  ]
+ },
+ "deviceIds": {
+  "created": 36,
+  "left": [
+   "VEN_1002&DEV_15D8&SUBSYS_21631025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21631025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21641025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21641025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21681025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21681025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21681025&REV_CD|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21791025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_21791025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_219E1025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15D8&SUBSYS_219E1025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_16201025&REV_C1|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_16201025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_16201025&REV_C3|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_16201025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_16201025&REV_C5|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_16201025&REV_C6|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_17121025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_17121025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_17121025&REV_C5|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_17121025&REV_C6|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_20811025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_20811025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_20811025&REV_C5|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_20811025&REV_C6|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210C1025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210C1025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210C1025&REV_C5|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210C1025&REV_C6|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210D1025&REV_C2|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210D1025&REV_C4|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210D1025&REV_C5|oem5.inf",
+   "VEN_1002&DEV_15E7&SUBSYS_210D1025&REV_C6|oem5.inf",
+   "VEN_1002&DEV_1638&SUBSYS_20981025&REV_C3|oem5.inf",
+   "VEN_1002&DEV_1638&SUBSYS_21011025&REV_C3|oem5.inf",
+   "VEN_1002&DEV_1638&SUBSYS_21021025&REV_C3|oem5.inf"
+  ],
+  "cleaned": 0,
+  "collateral": [],
+  "added": []
+ },
+ "com": {
+  "created": 4,
+  "left": [],
+  "cleaned": 4,
+  "collateral": [],
+  "added": []
+ },
+ "tasks": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": []
+ },
+ "appx": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": []
+ },
+ "policy": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": []
+ }
+}

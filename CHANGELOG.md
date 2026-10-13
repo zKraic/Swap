@@ -1,5 +1,17 @@
 # Changelog · KraicDev
 
+## 0.6.0 preview
+
+The card change from start to finish, what games actually load, and the files a driver leaves outside its package. Measured against Display Driver Uninstaller on identical copies of a Windows guest.
+
+- **New: I'm changing my card.** Before shutting down, Swap backs up the graphics drivers and records the current state (games/APIs, displays, connected GPUs). After the swap it opens at sign-in, detects the new card, waits 20 seconds (cancellable), installs its driver, removes the old brand with a backup and writes a validation report. The old card still connected, no new card, several new cards, another PC and a driver restart are handled; the preparation expires after 10 starts.
+- **New: Games — Direct3D 12, Vulkan and OpenCL.** A child Swap process asks the runtimes themselves which GPU they see: Direct3D 12 feature level, Vulkan devices and version, OpenCL platforms and GPUs. It warns when Vulkan or OpenCL still list a disconnected brand or do not see the new card. Runtimes load only by full System32 path; nothing is rendered or changed. Checked on a real GeForce GTX 1060 (FL 12_1, Vulkan 1.4, OpenCL 3.0, 1.4 s).
+- **New: files outside the Driver Store.** Display drivers copy dozens of files into System32 and SysWOW64, and deleting the package leaves them there. Swap removes them with package evidence (the package's own INF, or Windows' setup log for packages already gone), the brand as file author and no remaining package that uses them, into the sealed quarantine with undo. The shared Vulkan/OpenCL loaders, Microsoft runtimes, PhysX and `System32\drivers` are never touched. Files Windows protects for Plug and Play are renamed with the administrator's restore privilege without rewriting their permissions.
+- **New: Vulkan/OpenCL registrations and COM codecs.** Stale Khronos registrations (Vulkan drivers and layers, OpenCL vendors) that point to removed or missing files, and COM classes and Media Foundation transforms served from the removed driver, are exported and removed. Overlay layers of Steam, OBS, RTSS, Overwolf, Epic or Rockstar stay.
+- **New: validation report.** Diagnostics and the end of a card change produce an English Markdown/JSON report for a GitHub hardware issue: before/after GPU and driver, cleanup counts, leftovers found afterwards, Direct3D 12/Vulkan/OpenCL, displays. No machine identifier, account name or private path; **Copy for GitHub** only copies it and opens the form.
+- **Measured against Display Driver Uninstaller.** On identical copies of a Windows guest with the official AMD display driver and the card removed, DDU 18.1.5.3 left the AMD extension package, 36 device-database entries and 57 registry values; Swap left one empty COM class, touched nothing that existed before the driver, and its undo restored 98 items without failures. The lab also found four gaps that were fixed: System32 links Windows deletes by itself, Media Foundation registrations, AMD software components with their own IDs and the External Events settings. See [COMPARISON-DDU.md](docs/COMPARISON-DDU.md).
+- Tests: 189 logic cases (14 new), a real read-only API probe, a WPF audit of 157 cases including the games panel and the full simulated card change, and the comparison lab in an isolated Windows 10 guest.
+
 ## 0.5.0 preview
 
 Deep cleanup of the previous brand, a fix for a failure that every real card swap would have hit, and two new diagnostics.

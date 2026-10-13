@@ -48,14 +48,18 @@ public partial class MainWindow : Window
         if (Width > SystemParameters.WorkArea.Width || Height > SystemParameters.WorkArea.Height)
             WindowState = WindowState.Maximized;
         await Guard(AnalyzeAsync);
+        // A prepared card change decides whether the cleanup after a verified driver runs regardless of the preference.
+        swapIntent = LoadIntent(); swapCleanup = swapIntent?.Phase == "installing";
         if (!Demo && !readOnly && snapshot is { Admin: true, Complete: true }) await Guard(ContinuePendingAsync);
+        if (!readOnly && swapIntent is not null && snapshot is { Admin: true, Complete: true }) await Guard(ResumeSwapAsync);
         var audit = Environment.GetCommandLineArgs().FirstOrDefault(a => a.StartsWith("--ui-audit="))?[11..];
         if (audit is not null) await UiAuditAsync(audit);
     }
     private async Task Guard(Func<Task> action)
     {
         if (busy) { Status.Text = T("wait"); return; }
-        busy = true; RunButton.IsEnabled = DownloadButton.IsEnabled = DemoButton.IsEnabled = false;
+        busy = true; RunButton.IsEnabled = DownloadButton.IsEnabled = DemoButton.IsEnabled = PrepareButton.IsEnabled = false;
+        SwapPrimaryButton.IsEnabled = SwapSecondaryButton.IsEnabled = SwapCancelButton.IsEnabled = false;
         LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = DeepCleanBox.IsEnabled = false;
         Progress.Visibility = Visibility.Visible; Details.IsExpanded = false;
         try { await action(); }
@@ -94,7 +98,7 @@ public partial class MainWindow : Window
             .OrderBy(a => a is { Problem: 0, Signed: true } && Planner.IsOem(a.Inf)).ToArray();
         populating = true; GpuBox.ItemsSource = adapters; GpuBox.SelectedItem = TargetChoice.Select(adapters, selectedId); populating = false;
         GpuBox.Visibility = adapters.Length > 1 ? Visibility.Visible : Visibility.Collapsed;
-        PaintSnapshot(); await InspectGraphicsAsync(); RefreshFiles(); Status.Text = T(TargetAdapter is not null ? "ready" : adapters.Length > 1 ? "selectGpu" : "noGpu"); UpdateButtons();
+        PaintSnapshot(); await InspectGraphicsAsync(); await ProbeApisAsync(); RefreshFiles(); Status.Text = T(TargetAdapter is not null ? "ready" : adapters.Length > 1 ? "selectGpu" : "noGpu"); UpdateButtons();
     }
     private void PaintSnapshot()
     {
@@ -119,6 +123,8 @@ public partial class MainWindow : Window
     {
         bool enabled = !busy && !readOnly && !rebootRequested && snapshot is { Admin: true, Complete: true, PendingReboot: false, Remote: false } && TargetAdapter is not null && snapshot.FreeBytes >= 4L * 1024 * 1024 * 1024;
         RunButton.IsEnabled = DownloadButton.IsEnabled = enabled;
+        PrepareButton.IsEnabled = !busy && !readOnly && snapshot is { Admin: true, Complete: true } && TargetAdapter is not null && swapIntent is null;
+        SwapPrimaryButton.IsEnabled = SwapSecondaryButton.IsEnabled = SwapCancelButton.IsEnabled = !busy;
     }
     private static string VendorName(Vendor v) => v == Vendor.Nvidia ? "NVIDIA" : v == Vendor.Amd ? "AMD" : v == Vendor.Intel ? "Intel" : "—";
     private Vendor PreviousVendor(Snapshot current)
@@ -159,7 +165,7 @@ public partial class MainWindow : Window
                 if (downloadOnly) { Status.Text = T("noCompatible"); return; }
                 if (TargetAdapter is not { Signed: true, Problem: 0 } || !Planner.IsOem(TargetAdapter.Inf)) { Status.Text = T("noCompatible"); return; }
                 var outcome = await new Maintenance(platform).RunAsync(before, source, Target, NewSession(), Log, token, Stage, TargetAdapter!.Id, SourceBox.SelectedIndex == 0);
-                rebootRequested = outcome.RebootRequired; await RegisterContinuationAsync(outcome);
+                rebootRequested = outcome.RebootRequired; lastVerified = outcome.Verified; await RegisterContinuationAsync(outcome);
                 if (outcome.Verified) await AutoCleanupAsync(token);
                 await AnalyzeAsync(); await SaveVerifiedCheckpointAsync(outcome.Verified); if (outcome.Verified) FinishStages(false);
                 Status.Text = T(outcome.Verified ? "noOffer" : outcome.RebootRequired ? "reboot" : "review"); Log(outcome.SessionPath); return;
@@ -172,7 +178,7 @@ public partial class MainWindow : Window
             token.ThrowIfCancellationRequested();
             if (downloadOnly) { Step1.Text = Step2.Text = "✓"; Step1.SetResourceReference(TextBlock.ForegroundProperty, "Good"); Step2.SetResourceReference(TextBlock.ForegroundProperty, "Good"); Status.Text = T(Demo ? "demoDone" : "downloaded"); return; }
             var session = NewSession(); var resultOutcome = await new Engine(platform).RunAsync(plan, session, Log, token, Stage);
-            rebootRequested = resultOutcome.RebootRequired; await RegisterContinuationAsync(resultOutcome);
+            rebootRequested = resultOutcome.RebootRequired; lastVerified = resultOutcome.Verified; await RegisterContinuationAsync(resultOutcome);
             if (resultOutcome.Verified) await AutoCleanupAsync(token);
             await AnalyzeAsync(); await SaveVerifiedCheckpointAsync(resultOutcome.Verified); if (resultOutcome.Verified) FinishStages();
             Status.Text = T(Demo ? "demoDone" : resultOutcome.Verified ? "done" : resultOutcome.RebootRequired ? "reboot" : "review");
@@ -210,7 +216,7 @@ public partial class MainWindow : Window
                     catch(Exception e){Log(T("checkpointReadError")+" · "+e.GetType().Name);}
                 }
                 var outcome = await new Continuation(platform).RunAsync(pending.Session, Log, token, Stage);
-                rebootRequested = outcome.RebootRequired; await RegisterContinuationAsync(outcome);
+                rebootRequested = outcome.RebootRequired; lastVerified = outcome.Verified; await RegisterContinuationAsync(outcome);
                 if (outcome.Verified) await AutoCleanupAsync(token);
                 await AnalyzeAsync(); await SaveVerifiedCheckpointAsync(outcome.Verified);
                 if (outcome.Verified) FinishStages(); Status.Text = T(outcome.Verified ? "done" : "reboot");
@@ -253,7 +259,7 @@ public partial class MainWindow : Window
     {
         if (!IsLoaded || populating || busy) { if (busy) DeepCleanBox.IsChecked = preferences.DeepClean; return; }
         preferences = new((LanguageBox.SelectedItem as Choice)?.Value ?? "auto", (ThemeBox.SelectedItem as Choice)?.Value ?? "auto", SourceBox.SelectedIndex, DeepCleanBox.IsChecked == true);
-        dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); RelabelCleanup(); SetFrame(); RefreshFiles(); Status.Text = T("ready");
+        dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); RelabelCleanup(); RelabelSwap(); SetFrame(); RefreshFiles(); Status.Text = T("ready");
         PageTitle.Text = T(HomePage.Visibility == Visibility.Visible ? "home" : CleanupPage.Visibility == Visibility.Visible ? "cleanup" : LibraryPage.Visibility == Visibility.Visible ? "library" : RecoveryPage.Visibility == Visibility.Visible ? "recovery" : DiagnosticsPage.Visibility == Visibility.Visible ? "diagnostics" : "settings");
         try { if (!Demo) preferences.Save(); } catch (Exception ex) { Status.Text = T("failed"); Log(ex.Message); }
     }
@@ -414,6 +420,7 @@ public partial class MainWindow : Window
                 graphicsDiagnostics is not null && GraphicsHealth.Evaluate(TargetAdapter, graphicsDiagnostics).Any(f => f.Code == "direct3dOk")),
             displays=graphicsDiagnostics?.Displays.Select(d=>new {d.Name,d.Width,d.Height,d.Hz,d.MaximumHz}),
             probes=graphicsDiagnostics?.Probes.Select(p=>new {p.Name,p.DedicatedBytes,p.Hardware,p.Direct3D,p.FeatureLevel,p.Error}),
+            games=GameFindings(TargetAdapter), apis=SwapReport.Summarize(apiReport,TargetAdapter),
             incidents=graphicsDiagnostics?.Incidents, graphicsDiagnostics?.DisplaysComplete, graphicsDiagnostics?.EventsComplete,
             changes=checkpoint is not null && graphicsDiagnostics is not null && checkpoint.MachineId==current.MachineId && checkpoint.Simulated==Demo ? GraphicsHealth.Compare(checkpoint,current,graphicsDiagnostics,Demo) : null,
             scope = "Windows PnP, driver, Direct3D and display observations. No electrical, cabling, FPS or game certification." };

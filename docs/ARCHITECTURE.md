@@ -6,9 +6,9 @@ C# + WPF + .NET 10 LTS. Un EXE autocontenido sin MSIX, WebView2, servicio reside
 
 ## Componentes
 
-- `Swap.Core`: tipos, `Planner`, `Engine`, `Maintenance`, `DeepCleanPlanner`/`DeepCleanEngine`, lector de INF y de líneas de comando. Reglas y flujos independientes de Windows, probados con fallos simulados.
-- `Swap.Windows`: inventario CIM/PnpDevice/DISM y registro de dispositivos (incluidos los desconectados); firma y hashing; PnPUtil; `AutomaticPlatform`, `WindowsCleanupPlatform`, `DemoCleanupPlatform` y scripts embebidos.
-- `Swap.App`: WPF, temas por recursos dinámicos, seis idiomas, elevación al iniciar, navegación, biblioteca, recuperación y diagnósticos.
+- `Swap.Core`: tipos, `Planner`, `Engine`, `Maintenance`, `DeepCleanPlanner`/`DeepCleanEngine`, lector de INF (modelos y copias a System32/SysWOW64), lector del registro de instalación de Windows (`SetupLog`), `GameReadiness`, `SwapDetection` y `SwapReport`. Reglas y flujos independientes de Windows, probados con fallos simulados.
+- `Swap.Windows`: inventario CIM/PnpDevice/DISM y registro de dispositivos (incluidos los desconectados); archivos de fabricantes en System32/SysWOW64 y registros de Khronos; firma y hashing; PnPUtil; `ApiProbe` (Direct3D 12, Vulkan y OpenCL en un proceso hijo); `SwapRegistration`; `AutomaticPlatform`, `WindowsCleanupPlatform`, `DemoCleanupPlatform` y scripts embebidos.
+- `Swap.App`: WPF, temas por recursos dinámicos, seis idiomas, elevación al iniciar, navegación, cambio guiado de tarjeta, biblioteca, recuperación y diagnósticos.
 - `Swap.Tests`: ejecutor de pruebas con backend falso; pruebas de rechazo que no escriben drivers y sondas optativas de lectura real.
 
 ## Ruta automática
@@ -43,10 +43,20 @@ El JSON de biblioteca es información para la lista, no prueba de confianza. Al 
 - Paquete retirable: proveedor exacto de la marca, clase gráfica permitida, no crítico de arranque, todos sus IDs en el dominio (o solo usado por dispositivos desconectados retirables) y sin dispositivos conectados que lo usen. IDs mixtos se conservan.
 - Servicios, tareas, inicios y entradas de Programas solo si su programa desaparece con la limpieza o ya no existe en una ubicación del fabricante. Un servicio que usa un dispositivo conectado se conserva.
 - Carpetas fijas por marca. PhysX se protege. La GPU integrada de la marca del procesador y los portátiles quedan sin marcar.
+- Archivos fuera del almacén de drivers. Un INF copia archivos a System32/SysWOW64 (DIRID 11, 16425 o `10,SysWOW64`) y `pnputil /delete-driver` no los borra. Un archivo es retirable si lo lista el INF de un paquete que se retira, o si `setupapi.dev.log` registra que se copió desde una carpeta del almacén que ya no existe; además su autor (versión del archivo) debe ser la marca cuando tiene metadatos, y ningún paquete que se queda puede desplegar el mismo archivo. Nunca se tocan `System32\drivers`, el almacén, archivos `.sys`, los cargadores comunes de Vulkan y OpenCL (`vulkan-1*.dll`, `vulkaninfo*`, `OpenCL.dll`), runtimes de Microsoft ni PhysX.
+- Registros de Khronos (`SOFTWARE\Khronos\Vulkan\Drivers`, `ImplicitLayers`, `ExplicitLayers` y `OpenCL\Vendors`, nativos y de 32 bits). Se retiran si apuntan a lo que se retira, si su archivo ya no existe y su nombre es de un driver de la marca, o si son el driver de juegos de la marca desconectada. Las capas de Steam, OBS, RTSS, Overwolf, Epic o Rockstar se conservan salvo que apunten a archivos que se retiran.
 
-`DeepCleanEngine` vuelve a inventariar y planificar antes de actuar: solo ejecuta elementos que siguen siendo elegibles y se detiene si la marca volvió a conectarse o si es otro equipo. Orden: procesos, desinstaladores opcionales, dispositivos, paquetes (exportados y sellados antes), servicios (exportados), tareas (XML), inicios (valor), apps de la Tienda, carpetas (cuarentena sellada en el mismo volumen), cachés, claves y entradas de Programas (exportadas). Un fallo de un elemento no detiene los demás; un respaldo fallido impide borrar ese elemento. El inventario final marca lo que sigue presente.
+`DeepCleanEngine` vuelve a inventariar y planificar antes de actuar: solo ejecuta elementos que siguen siendo elegibles y se detiene si la marca volvió a conectarse o si es otro equipo. Orden: procesos, desinstaladores opcionales, dispositivos, paquetes (exportados y sellados antes), servicios (exportados), tareas (XML), inicios (valor), apps de la Tienda, carpetas (cuarentena sellada en el mismo volumen), archivos de System32/SysWOW64 (cuarentena sellada; los archivos protegidos para PnP se renombran con el privilegio de restauración del administrador, sin reescribir su ACL; la entrada `PnpLockdownFiles` se exporta y retira con ellos), cachés, registros de Khronos (valor exportado a JSON), claves y entradas de Programas (exportadas). Un fallo de un elemento no detiene los demás; un respaldo fallido impide borrar ese elemento. El inventario final marca lo que sigue presente.
 
 Los respaldos que podrían restaurar servicios o registro se guardan en `%ProgramData%\Swap\Cleanup`, con ACL protegida solo para Administradores y SYSTEM; `undo.json` vive allí y las rutas de respaldo se derivan de esa carpeta, nunca de la copia informativa de la sesión. Deshacer valida el sellado de la cuarentena antes de devolverla.
+
+## Juegos y API gráficas
+
+`ApiProbe` se ejecuta en un proceso hijo (`Swap.exe --probe-apis`), porque un driver o una capa de Vulkan dañados pueden colgar o cerrar el proceso que los carga. Carga `d3d12.dll`, `dxgi.dll`, `vulkan-1.dll` y `OpenCL.dll` solo por ruta completa de System32, crea un dispositivo Direct3D 12 por adaptador de hardware y consulta su nivel de funciones, crea una instancia de Vulkan y lista sus dispositivos físicos, y lista las plataformas OpenCL con sus GPU. No renderiza, no instala y no escribe. El proceso padre lo detiene a los 45 segundos. `GameReadiness` evalúa la GPU seleccionada y avisa si Vulkan u OpenCL siguen viendo una marca desconectada.
+
+## Cambio guiado de tarjeta
+
+**Voy a cambiar de tarjeta** respalda los paquetes Display, guarda el estado de juegos/API y pantallas y la lista de GPU conectadas en `%LOCALAPPDATA%\Swap\Continuation\swap-intent.json`, y registra un RunOnce de HKCU con una copia local del EXE. En cada inicio, `SwapDetection` compara con el inventario: tarjeta anterior aún conectada (espera), una GPU nueva (cuenta atrás de 20 s cancelable, instalación automática y limpieza profunda aunque esté desactivada en Ajustes), ninguna GPU nueva o varias (elección manual), u otro equipo (descarta). Si el driver pide reiniciar, la continuación existente toma el relevo y el cambio se completa al verificar. La preparación caduca tras 10 inicios. Al terminar genera `Reports\*-validation.md/json`: informe en inglés para GitHub, sin identificador de equipo, nombre de cuenta ni rutas privadas.
 
 ## Persistencia
 

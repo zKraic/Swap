@@ -34,12 +34,36 @@ public partial class MainWindow
             await SaveCheckpointCoreAsync();
         PaintGraphics();
     }
+    // Direct3D 12, Vulkan and OpenCL as games see them, asked from a separate Swap process.
+    private ApiReport? apiReport;
+    private async Task ProbeApisAsync()
+    {
+        if(snapshot is null)return;
+        apiReport=Demo ? TargetAdapter is {} adapter ? ApiProbe.Demo(adapter) : null : await ApiProbe.RunAsync(Environment.ProcessPath!);
+        if(apiReport is {Completed:false})Log(T("apiProbeFailed")+" · "+string.Join("; ",apiReport.Errors));
+        PaintGraphics();
+    }
+    private IReadOnlyList<HealthFinding> GameFindings(Adapter? target)
+    {
+        if(snapshot is null || apiReport is null || target is null)return [];
+        var connected=snapshot.Adapters.Select(a=>a.Vendor).Where(v=>v!=Vendor.Unknown).ToHashSet();
+        return GameReadiness.Evaluate(target,apiReport,connected);
+    }
+    private void PaintGames()
+    {
+        var findings=GameFindings(TargetAdapter);
+        GamesText.Text=TargetAdapter is null ? T("selectGpu") : findings.Count==0 ? T("gamesUnknown") : string.Join("\n",findings.Select(Describe));
+        if(findings.Any(f=>f.Attention) && !IsAuditRun)GamesDisclosure.IsExpanded=true;
+    }
     private void PaintGraphics()
     {
         if(snapshot is null || graphicsDiagnostics is null)return;
         var findings=GraphicsHealth.Evaluate(TargetAdapter,graphicsDiagnostics);
         HealthText.Text=TargetAdapter is null && snapshot.Adapters.Count>1 ? T("selectGpu") : string.Join("\n",findings.Select(Describe));
-        GpuHealthSummary.Text=TargetAdapter is null ? T(snapshot.Adapters.Count>1?"selectGpu":"noGpu") : T(TargetAdapter.Problem==0?"pnpOk":"pnpError")+(TargetAdapter.Problem is >0 ? " "+TargetAdapter.Problem:"");
+        var games=GameFindings(TargetAdapter);
+        GpuHealthSummary.Text=TargetAdapter is null ? T(snapshot.Adapters.Count>1?"selectGpu":"noGpu") : T(TargetAdapter.Problem==0?"pnpOk":"pnpError")+(TargetAdapter.Problem is >0 ? " "+TargetAdapter.Problem:"")+
+            (games.Count==0 ? "" : " · "+T(games.Any(f=>f.Attention)?"gamesAttention":"gamesReady"));
+        PaintGames();
         PaintRefresh();
         DisplayText.Text=graphicsDiagnostics.Displays.Count==0?T("displayUnknown"):string.Join("\n",graphicsDiagnostics.Displays.Select(d=>$"{d.Name} · {d.Width}×{d.Height} · {(d.Hz>1?d.Hz+" Hz":T("unknown"))}"+(d.MaximumHz>d.Hz+1 && d.Hz>1?$" · {T("maximumHz")} {d.MaximumHz} Hz":"")));
         EventText.Text=!graphicsDiagnostics.EventsComplete?T("eventsUnknown"):graphicsDiagnostics.Incidents.Count==0?T("noDisplayErrors"):string.Join("\n",graphicsDiagnostics.Incidents.Take(8).Select(e=>$"{e.Time.LocalDateTime:g} · {e.Kind} · {e.Provider} ({e.Id})"));

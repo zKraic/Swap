@@ -117,7 +117,7 @@ static class DeepCleanTests
         {
             var plan = DeepCleanPlanner.Create(await Demo(physx: true), [Vendor.Nvidia]);
             Assert(plan.Kept.Any(k => k.Reason == "physxKept" && k.Target.EndsWith("PhysX")));
-            Assert(plan.Kept.Any(k => k.Kind == RemnantKind.Registry && k.Reason == "physxKept") && !plan.Items.Any(i => i.Kind == RemnantKind.Registry));
+            Assert(plan.Kept.Any(k => k.Kind == RemnantKind.Registry && k.Reason == "physxKept") && !plan.Items.Any(i => i.Kind == RemnantKind.Registry && i.Reason == "settingsKey"));
             Assert(plan.Kept.Any(k => k.Kind == RemnantKind.App && k.Label.Contains("PhysX")));
             Assert(plan.Items.Any(i => i.Kind == RemnantKind.Folder && i.Target.EndsWith("NVIDIA App")) && !plan.Items.Any(i => i.Target.EndsWith("PhysX")));
         });
@@ -401,6 +401,264 @@ static class DeepCleanTests
             Assert(GraphicsHealth.Evaluate(adapter, D(16)).Any(f => f.Code == "pcieLink" && !f.Attention && f.Detail.Contains("Gen 1 / Gen 4")));
             Assert(GraphicsHealth.Evaluate(adapter, D(4)).Any(f => f.Code == "pcieReduced" && f.Attention && f.Detail == "x4 / x16"));
             Assert(!GraphicsHealth.Evaluate(adapter, D(16) with { Links = null }).Any(f => f.Code.StartsWith("pcie")));
+            return Done();
+        });
+
+        // ---- 0.6: files outside the Driver Store, Khronos registrations, game APIs and the guided card change ----
+        await test("INF reader lists System32/SysWOW64 copies and ignores other destinations", () =>
+        {
+            var inf = """
+                [Version]
+                Class=Display
+                Provider=%ATI%
+                [DestinationDirs]
+                DefaultDestDir = 11
+                System32Files = 11
+                Wow64Files = 10, SysWOW64
+                Wow64Dirid = 16425
+                LxssFiles = 11, lxss\lib
+                StoreFiles = 13
+                DriverFiles = 12
+                Escape = 11, ..\Temp
+                [System32Files]
+                atiadlxx.dll,,,0x00004000
+                amdxc64.dll
+                ..\evil.dll
+                [Wow64Files]
+                atiadlxy.dll
+                [Wow64Dirid]
+                amdxc32.dll
+                [LxssFiles]
+                libdxcore.so
+                [StoreFiles]
+                amdkmdag.sys
+                [DriverFiles]
+                amdkmdag.sys
+                [Escape]
+                payload.dll
+                [Strings]
+                ATI = "Advanced Micro Devices, Inc."
+                """;
+            var files = InfReader.Read(inf).SystemFiles!;
+            Assert(files.SequenceEqual([@"System32\atiadlxx.dll", @"System32\amdxc64.dll", @"SysWOW64\atiadlxy.dll", @"SysWOW64\amdxc32.dll", @"System32\lxss\lib\libdxcore.so"]), string.Join(",", files));
+            return Done();
+        });
+        await test("Software components of a removed display driver are planned through its AddComponent IDs", () =>
+        {
+            var parent = InfReader.Read("""
+                [Version]
+                Class=Display
+                Provider=%AMD%
+                [ati2mtag_Cezanne.Components]
+                AddComponent = AMDOCL,,AMDOCLComponent
+                AddComponent = AMDWIN,,AMDWINComponent
+                AddComponent = AMDUWP,,AMDUWPComponent
+                [AMDOCLComponent]
+                ComponentIDs = AMDOCL-23.19
+                [AMDWINComponent]
+                ComponentIDs = AMDWIN-23.19
+                [AMDUWPComponent]
+                ComponentIDs=VID1002&PID0001
+                [Strings]
+                AMD = "Advanced Micro Devices, Inc."
+                """);
+            Assert(parent.ComponentIds!.SequenceEqual([@"SWC\AMDOCL-23.19", @"SWC\AMDWIN-23.19", @"SWC\VID1002&PID0001"]), string.Join(",", parent.ComponentIds!));
+            var inventory = Inventory() with
+            {
+                Devices = [new(@"PCI\VEN_10DE&DEV_2786\NEW", "Display", "oem99.inf", "nvlddmkm", true, [@"PCI\VEN_10DE&DEV_2786"]),
+                    new(@"SWC\AMDOCL-23.19\OLD", "SoftwareComponent", "oem6.inf", "", false, [@"SWC\AMDOCL-23.19"])],
+                Packages = [new("oem4.inf", "u0202828.inf", "Advanced Micro Devices, Inc.", "Display", "31", false, @"C:\Store\u0", 9, [@"PCI\VEN_1002&DEV_1638"], null, parent.ComponentIds),
+                    new("oem6.inf", "amdocl.inf", "Advanced Micro Devices, Inc.", "SoftwareComponent", "31", false, @"C:\Store\ocl", 9, [@"SWC\AMDOCL-23.19"]),
+                    new("oem7.inf", "amdwin-u0202828.inf", "Advanced Micro Devices, Inc.", "SoftwareComponent", "31", false, @"C:\Store\win", 9, [@"SWC\AMDWIN-23.19"]),
+                    new("oem8.inf", "other.inf", "Advanced Micro Devices, Inc.", "SoftwareComponent", "1", false, @"C:\Store\other", 9, [@"SWC\RYZENMASTER"])]
+            };
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Amd]);
+            Assert(plan.Items.Any(i => i.Key == "package:oem6.inf" && i.Reason == "packageComponent") && plan.Items.Any(i => i.Key == "package:oem7.inf" && i.Reason == "packageComponent"));
+            Assert(plan.Items.Any(i => i.Key == @"device:SWC\AMDOCL-23.19\OLD") && !plan.Items.Any(i => i.Target == "oem8.inf"), "unrelated component planned");
+            return Done();
+        });
+        await test("Setup log copies keep the Driver Store folder of packages that are already gone", () =>
+        {
+            var lines = new[] {
+                @"     flq:      Copying 'C:\Windows\System32\DriverStore\FileRepository\u0202828.inf_amd64_4c7e1a\B026278\atiadlxx.dll' to 'C:\Windows\system32\atiadlxx.dll'.",
+                @"     flq:      Copying 'C:\Users\Someone\Downloads\x.dll' to 'C:\Windows\System32\x.dll'.",
+                @"     flq:      Copying 'C:\Windows\System32\DriverStore\FileRepository\..\evil\a.dll' to 'C:\Windows\System32\a.dll'.",
+                @"     flq:      Copying 'C:\Windows\System32\DriverStore\FileRepository\nv_dispi.inf_amd64_9a\nvapi.dll' to 'C:\Windows\SysWOW64\nvapi.dll'.",
+                // Windows 10 2004+ links System32 files to the store instead of copying them (observed in the comparison lab).
+                @"     flq:                     Hardlinking 'C:\Windows\System32\DriverStore\FileRepository\u0202828.inf_amd64_9cfe79f0f12c413e\.\B026278\amdadlx64.dll' to 'C:\Windows\system32\amdadlx64.dll'.",
+                @"     flq:                Copying 'C:\Windows\TEMP\{1446fd92}\B026278\amdadlx64.dll' to 'C:\Windows\System32\DriverStore\Temp\{642f}\B026278\amdadlx64.dll'." };
+            var copies = SetupLog.Copies(lines).ToArray();
+            Assert(copies.Length == 3 && copies[0] == (@"C:\Windows\system32\atiadlxx.dll", "u0202828.inf_amd64_4c7e1a") && copies[1].Source == "nv_dispi.inf_amd64_9a" &&
+                copies[2] == (@"C:\Windows\system32\amdadlx64.dll", "u0202828.inf_amd64_9cfe79f0f12c413e"), string.Join(";", copies));
+            return Done();
+        });
+        await test("File authors map to brands exactly, including the ATI era", () =>
+        {
+            Assert(Vendors.FromCompany("Advanced Micro Devices, Inc.") == Vendor.Amd && Vendors.FromCompany("ATI Technologies Inc.") == Vendor.Amd && Vendors.FromCompany("NVIDIA Corporation") == Vendor.Nvidia);
+            Assert(Vendors.FromCompany("Intel(R) Corporation") == Vendor.Intel && Vendors.FromCompany("LunarG, Inc.") == Vendor.Unknown && Vendors.FromCompany("Not NVIDIA") == Vendor.Unknown && Vendors.FromCompany("") == Vendor.Unknown);
+            return Done();
+        });
+        await test("System32 files need package evidence, the brand as author and no remaining user; loaders always stay", async () =>
+        {
+            var platform = new DemoCleanupPlatform(Sandbox()); var inventory = await platform.InventoryAsync();
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            string File(string relative) => "file:" + Path.Combine(platform.WindowsRoot, relative);
+            foreach (var (key, reason) in new[] { (File(@"System32\nvapi64.dll"), "fileInf"), (File(@"System32\nvcuda.dll"), "fileInf"), (File(@"SysWOW64\nvapi.dll"), "fileInf"), (File(@"System32\nvml.dll"), "fileLog") })
+                Assert(plan.Items.Any(i => i.Key.Equals(key, StringComparison.OrdinalIgnoreCase) && i.Reason == reason && i.Selected), "missing " + key);
+            Assert(plan.Kept.Any(k => k.Key.Equals(File(@"System32\vulkan-1.dll"), StringComparison.OrdinalIgnoreCase) && k.Reason == "fileSharedRuntime"));
+            Assert(plan.Kept.Any(k => k.Key.Equals(File(@"System32\OpenCL.dll"), StringComparison.OrdinalIgnoreCase) && k.Reason == "fileSharedRuntime"));
+            Assert(!plan.Items.Any(i => i.Target.Contains("amdxc64", StringComparison.OrdinalIgnoreCase) || i.Target.Contains("vulkan-1", StringComparison.OrdinalIgnoreCase)), "connected or shared file planned");
+            // Another package that stays deploys the same file; a different author; log evidence of a package still in the store.
+            var nvapi = Path.Combine(platform.WindowsRoot, @"System32\nvapi64.dll");
+            var shared = inventory with { Packages = [.. inventory.Packages, new("oem80.inf", "nvmixed.inf", "NVIDIA", "MEDIA", "1", false, @"C:\Store\mixed", 1,
+                [@"HDAUDIO\FUNC_01&VEN_10DE&DEV_0001", @"HDAUDIO\FUNC_01&VEN_10EC&DEV_0887"], [@"System32\nvapi64.dll"])] };
+            var sharedPlan = DeepCleanPlanner.Create(shared, [Vendor.Nvidia]);
+            Assert(sharedPlan.Kept.Any(k => k.Key == "package:oem80.inf") && sharedPlan.Kept.Any(k => k.Target == nvapi && k.Reason == "fileShared"));
+            var foreign = inventory with { SystemFiles = inventory.SystemFiles!.Select(f => f.Path == nvapi ? f with { Company = "Microsoft Corporation" } : f).ToArray() };
+            Assert(DeepCleanPlanner.Create(foreign, [Vendor.Nvidia]).Kept.Any(k => k.Target == nvapi && k.Reason == "fileOtherCompany"));
+            var living = inventory with { SystemFiles = inventory.SystemFiles!.Select(f => f.Source.Length > 0 ? f with { Source = "nv_dispi.inf_amd64_demo" } : f).ToArray() };
+            Assert(!DeepCleanPlanner.Create(living, [Vendor.Nvidia]).Items.Any(i => i.Target.EndsWith("nvml.dll")), "log evidence of a package still in the store");
+            var unsigned = inventory with { SystemFiles = inventory.SystemFiles!.Select(f => f.Source.Length > 0 ? f with { Company = "" } : f).ToArray() };
+            Assert(!DeepCleanPlanner.Create(unsigned, [Vendor.Nvidia]).Items.Any(i => i.Target.EndsWith("nvml.dll")), "log evidence without vendor authorship");
+            Assert(DeepCleanPlanner.SystemRelative(@"C:\Windows", @"C:\Windows\System32\drivers\nvlddmkm.sys") is null && DeepCleanPlanner.SystemRelative(@"C:\Windows", @"C:\Windows\System32\DriverStore\x.dll") is null &&
+                DeepCleanPlanner.SystemRelative(@"C:\Windows", @"C:\Windows\Temp\x.dll") is null && DeepCleanPlanner.SystemRelative(@"C:\Windows", @"C:\Windows\SysWOW64\nvapi.dll") == @"SysWOW64\nvapi.dll");
+        });
+        await test("Khronos registrations: removed or missing targets go, overlay layers stay", async () =>
+        {
+            var platform = new DemoCleanupPlatform(Sandbox()); var inventory = await platform.InventoryAsync();
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            var registrations = plan.Items.Where(i => i.Kind == RemnantKind.Registration).ToArray();
+            Assert(registrations.Any(i => i.Label == "nvopencl64.dll" && i.Reason == "registrationOrphan" && i.Selected));
+            Assert(registrations.Any(i => i.Label.EndsWith("nv-vk64.json") && i.Reason == "registrationRemoved"));
+            Assert(!registrations.Any(i => i.Label.Contains("Steam", StringComparison.OrdinalIgnoreCase)), "overlay layer planned");
+            // A missing file inside the Driver Store is only loader noise, whatever its brand.
+            var stale = inventory with { Registrations = [.. inventory.Registrations!, new(@"HKLM\SOFTWARE\Khronos\Vulkan\Drivers", @"C:\Windows\System32\DriverStore\FileRepository\gone_amd64_1\x.json", "", false, "")] };
+            Assert(DeepCleanPlanner.Create(stale, [Vendor.Nvidia]).Items.Any(i => i.Vendor == Vendor.Unknown && i.Reason == "registrationOrphan"));
+            // An existing ICD of the absent brand is unregistered; a layer of the same brand that is not being removed is not.
+            var vendor = inventory with { Registrations = [new(@"HKLM\SOFTWARE\Khronos\Vulkan\Drivers", @"C:\Program Files\X\nv.json", @"C:\Program Files\X\nvoglv64.dll", true, "NVIDIA Corporation"),
+                new(@"HKLM\SOFTWARE\Khronos\Vulkan\ImplicitLayers", @"C:\Program Files\X\nvlayer.json", @"C:\Program Files\X\nvlayer.dll", true, "NVIDIA Corporation")] };
+            var items = DeepCleanPlanner.Create(vendor, [Vendor.Nvidia]).Items.Where(i => i.Kind == RemnantKind.Registration).ToArray();
+            Assert(items.Length == 1 && items[0].Reason == "registrationVendor", string.Join(",", items.Select(i => i.Key)));
+            // Nothing is planned when no brand is targeted.
+            Assert(!DeepCleanPlanner.Create(stale, []).Items.Any());
+        });
+        await test("COM codecs served from a removed package go with their Media Foundation entries; other classes stay", async () =>
+        {
+            var platform = new DemoCleanupPlatform(Sandbox()); var inventory = await platform.InventoryAsync();
+            var clsid = @"HKLM\SOFTWARE\Classes\CLSID\{60F44560-5A20-4857-BFEF-D29773CB8040}";
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            Assert(plan.Items.Any(i => i.Key == "registry:" + clsid && i.Reason == "comServerRemoved" && i.Selected) &&
+                plan.Items.Any(i => i.Target.StartsWith(@"HKLM\SOFTWARE\Microsoft\Windows Media Foundation\Transforms\") && i.Reason == "comServerRemoved"));
+            var windows = inventory with { ComServers = [new(@"HKLM\SOFTWARE\Classes\CLSID\{11111111-2222-3333-4444-555555555555}", "{11111111-2222-3333-4444-555555555555}", @"C:\Windows\System32\mfplat.dll", true, []),
+                new(@"HKLM\SOFTWARE\Classes\CLSID\{22222222-2222-3333-4444-555555555555}", "{22222222-2222-3333-4444-555555555555}", @"C:\Windows\System32\DriverStore\FileRepository\gone_amd64_1\enc.dll", false, [])] };
+            var items = DeepCleanPlanner.Create(windows, [Vendor.Nvidia]).Items.Where(i => i.Reason.StartsWith("comServer")).ToArray();
+            Assert(items.Length == 1 && items[0].Reason == "comServerOrphan" && items[0].Vendor == Vendor.Unknown, string.Join(",", items.Select(i => i.Key)));
+            var sandbox = Sandbox(); var real = new DemoCleanupPlatform(Path.Combine(sandbox, "System")); var secure = Secure(sandbox); var session = Session(sandbox);
+            var run = DeepCleanPlanner.Create(await real.InventoryAsync(), [Vendor.Nvidia]);
+            var outcome = await new DeepCleanEngine(real).RunAsync(run, All(run), session, secure, _ => { });
+            Assert(outcome.Results.Any(r => r.Key == "registry:" + clsid && r.Status == "done") && (await real.InventoryAsync()).ComServers!.Count == 0);
+            await new DeepCleanEngine(real).UndoAsync(session, secure, _ => { });
+            Assert((await real.InventoryAsync()).ComServers!.Count == 1, "COM class not restored");
+        });
+        await test("PnP protection entries of a removed package go; entries Windows already dropped count as done", async () =>
+        {
+            var platform = new DemoCleanupPlatform(Sandbox()); var inventory = await platform.InventoryAsync();
+            var key = inventory.Lockdown!.Single().Key;
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            Assert(plan.Items.Any(i => i.Key == "registry:" + key && i.Reason == "lockdownRemoved" && i.Selected));
+            var orphan = inventory with { Lockdown = [new(@"HKLM\X\PnpLockdownFiles\gone", @"C:\Windows\System32\DriverStore\FileRepository\gone_amd64_1\a.dll", false),
+                new(@"HKLM\X\PnpLockdownFiles\inbox", @"C:\Windows\System32\DriverStore\FileRepository\keep_amd64_1\b.dll", true)] };
+            var items = DeepCleanPlanner.Create(orphan, [Vendor.Nvidia]).Items.Where(i => i.Reason.StartsWith("lockdown")).ToArray();
+            Assert(items.Length == 1 && items[0].Reason == "lockdownOrphan", string.Join(",", items.Select(i => i.Key)));
+            // Removed by Windows between planning and execution: done, nothing exported, nothing to restore.
+            var sandbox = Sandbox(); var real = new DemoCleanupPlatform(Path.Combine(sandbox, "System")) { PackageDropsLockdown = true }; var secure = Secure(sandbox); var session = Session(sandbox);
+            var run = DeepCleanPlanner.Create(await real.InventoryAsync(), [Vendor.Nvidia]);
+            var outcome = await new DeepCleanEngine(real).RunAsync(run, All(run), session, secure, _ => { });
+            Assert(outcome.Results.Any(r => r.Key == "registry:" + key && r.Status == "done" && r.Message == "alreadyRemoved" && r.Backup.Length == 0));
+            var undo = await new DeepCleanEngine(real).UndoAsync(session, secure, _ => { });
+            Assert(undo.Results.Any(r => r.Key == "registry:" + key && r.Status == "skipped") && !undo.Results.Any(r => r.Status == "failed"));
+        });
+        await test("System32 files are quarantined with integrity and restored by undo; registrations too", async () =>
+        {
+            var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")); var secure = Secure(sandbox);
+            var plan = DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]); var session = Session(sandbox);
+            var nvapi = Path.Combine(platform.WindowsRoot, @"System32\nvapi64.dll");
+            var outcome = await new DeepCleanEngine(platform).RunAsync(plan, All(plan), session, secure, _ => { });
+            var file = outcome.Results.Single(r => r.Target == nvapi);
+            Assert(file.Status == "done" && !File.Exists(nvapi) && File.Exists(Path.Combine(secure, Path.GetFileName(session), file.Backup)), file.Status + " " + file.Message);
+            Assert(File.Exists(Path.Combine(platform.WindowsRoot, @"System32\vulkan-1.dll")) && File.Exists(Path.Combine(platform.WindowsRoot, @"System32\amdxc64.dll")), "shared or connected file touched");
+            Assert(outcome.Results.Count(r => r.Kind == RemnantKind.Registration && r.Status == "done") == 2 && platform.Calls.Count(c => c.StartsWith("export-value:")) == 2);
+            var undo = await new DeepCleanEngine(platform).UndoAsync(session, secure, _ => { });
+            Assert(File.Exists(nvapi) && undo.Results.Count(r => r.Kind == RemnantKind.File && r.Status == "restored") == 4, string.Join(",", undo.Results.Where(r => r.Kind == RemnantKind.File).Select(r => r.Status + " " + r.Message)));
+            Assert(undo.Results.Count(r => r.Kind == RemnantKind.Registration && r.Status == "restored") == 2 && (await platform.InventoryAsync()).Registrations!.Count == 3);
+        });
+        await test("A System32 file Windows already removed with its package counts as done and has nothing to restore", async () =>
+        {
+            var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")) { PackageDropsSystemFiles = true }; var secure = Secure(sandbox); var session = Session(sandbox);
+            var plan = DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]);
+            var nvcuda = Path.Combine(platform.WindowsRoot, @"System32\nvcuda.dll");
+            var outcome = await new DeepCleanEngine(platform).RunAsync(plan, All(plan), session, secure, _ => { });
+            Assert(outcome.Results.Single(r => r.Target == nvcuda) is { Status: "done", Message: "alreadyRemoved", Backup.Length: 0 } && outcome.Failed == 0);
+            Assert(outcome.Results.Count(r => r.Kind == RemnantKind.File && r.Message == "alreadyRemoved") == 3 && outcome.Results.Any(r => r.Target.EndsWith("nvml.dll") && r.Backup.Length > 0), "log-evidence file not quarantined");
+            var undo = await new DeepCleanEngine(platform).UndoAsync(session, secure, _ => { });
+            Assert(undo.Results.Single(r => r.Target == nvcuda).Status == "skipped" && !File.Exists(nvcuda) && !undo.Results.Any(r => r.Status == "failed"));
+        });
+        await test("A tampered quarantined file is not put back into System32", async () =>
+        {
+            var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")); var secure = Secure(sandbox);
+            var plan = DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]); var session = Session(sandbox);
+            var outcome = await new DeepCleanEngine(platform).RunAsync(plan, All(plan), session, secure, _ => { });
+            var file = outcome.Results.First(r => r.Kind == RemnantKind.File && r.Status == "done");
+            File.WriteAllText(Path.Combine(secure, Path.GetFileName(session), file.Backup), "tampered");
+            var undo = await new DeepCleanEngine(platform).UndoAsync(session, secure, _ => { });
+            Assert(undo.Results.Any(r => r.Key == file.Key && r.Status == "failed") && !File.Exists(file.Target));
+        });
+        await test("Game readiness judges the selected GPU and flags runtimes of disconnected brands", () =>
+        {
+            var target = new Adapter("GeForce", @"PCI\VEN_10DE&DEV_2786&SUBSYS_1\4&1", Vendor.Nvidia, "oem99.inf", "32.0", 0, true);
+            var good = new ApiReport(DateTimeOffset.UtcNow, true, [new("D3D12", "GeForce", 0x10DE, 0x2786, "12_2")], "ok", [new("Vulkan", "GeForce", 0x10DE, 0x2786, "1.3.280")],
+                "ok", [new("OpenCL", "NVIDIA CUDA · NVIDIA Corporation", 0x10DE, 1, "OpenCL 3.0")], []);
+            var findings = GameReadiness.Evaluate(target, good, new HashSet<Vendor> { Vendor.Nvidia });
+            Assert(findings.Select(f => f.Code).SequenceEqual(["d3d12Ok", "vulkanOk", "openclOk"]) && !findings.Any(f => f.Attention), string.Join(",", findings.Select(f => f.Code)));
+            var stale = good with { VulkanDevices = [.. good.VulkanDevices, new("Radeon", "Radeon", 0x1002, 0x73BF, "1.3")], OpenClPlatforms = [.. good.OpenClPlatforms, new("OpenCL", "AMD APP · Advanced Micro Devices, Inc.", 0x1002, 0, "2.1")] };
+            var flagged = GameReadiness.Evaluate(target, stale, new HashSet<Vendor> { Vendor.Nvidia });
+            Assert(flagged.Any(f => f.Code == "vulkanStale" && f.Attention) && flagged.Any(f => f.Code == "openclStale" && f.Attention));
+            var broken = GameReadiness.Evaluate(target, good with { D3D12 = [], Vulkan = "ok", VulkanDevices = [] }, new HashSet<Vendor> { Vendor.Nvidia });
+            Assert(broken.Any(f => f.Code == "d3d12Missing" && f.Attention) && broken.Any(f => f.Code == "vulkanNoTarget" && f.Attention));
+            Assert(GameReadiness.Evaluate(target, good with { Completed = false, Errors = ["timeout"] }, new HashSet<Vendor>()).Single().Code == "apiProbeFailed");
+            Assert(GameReadiness.FeatureLevel(0xc100) == "12_1" && GameReadiness.VulkanVersion((1u << 22) | (3u << 12) | 280) == "1.3.280");
+            return Done();
+        });
+        await test("Card change detection: waiting, swapped, no GPU, several new GPUs and another computer", () =>
+        {
+            Adapter Gpu(string id, Vendor vendor) => new("GPU " + id, id, vendor, "oem1.inf", "1", 0, true);
+            var old = Gpu(@"PCI\VEN_1002&DEV_73BF\OLD", Vendor.Amd); var igpu = Gpu(@"PCI\VEN_8086&DEV_4680\IGPU", Vendor.Intel);
+            var intent = new SwapIntent(SwapDetection.Schema, "PC", Vendor.Amd, old.Id, old.Name, "31", DateTimeOffset.UtcNow, 0, "", null, [old.Id, igpu.Id]);
+            Snapshot With(params Adapter[] adapters) => new("W", "PC", true, false, false, false, 1L << 40, adapters, [], true, []);
+            Assert(SwapDetection.State(intent, With(old, igpu)).State == "waiting");
+            var (state, newcomer) = SwapDetection.State(intent, With(igpu, Gpu(@"PCI\VEN_10DE&DEV_2786\NEW", Vendor.Nvidia)));
+            Assert(state == "swapped" && newcomer!.Vendor == Vendor.Nvidia);
+            Assert(SwapDetection.State(intent, With(igpu)).State == "noGpu");
+            Assert(SwapDetection.State(intent, With(Gpu(@"PCI\VEN_10DE&DEV_2786\A", Vendor.Nvidia), Gpu(@"PCI\VEN_10DE&DEV_2786\B", Vendor.Nvidia))).State == "ambiguous");
+            Assert(SwapDetection.State(intent, With(igpu) with { MachineId = "OTHER" }).State == "otherMachine");
+            Assert(SwapDetection.Valid(intent) && !SwapDetection.Valid(intent with { Schema = 9 }) && !SwapDetection.Valid(intent with { Phase = "x" }) && !SwapDetection.Valid(null));
+            var path = Path.Combine(Sandbox(), "intent.json"); SwapRegistration.Save(path, intent with { Starts = 3 });
+            Assert(SwapRegistration.Load(path) is { Starts: 3, FromVendor: Vendor.Amd });
+            File.WriteAllText(path, "{\"Schema\":1}");
+            try { SwapRegistration.Load(path); throw new Exception("accepted"); } catch (IOException) { }
+            return Done();
+        });
+        await test("Validation report is English, attention-aware and carries no account or computer name", () =>
+        {
+            var apis = SwapReport.Summarize(new ApiReport(DateTimeOffset.UtcNow, true, [new("D3D12", "Radeon RX 7800 XT", 0x1002, 0x747E, "12_2"), new("D3D12", "Intel UHD", 0x8086, 1, "12_1")],
+                "ok", [new("Vulkan", "AMD Radeon RX 7800 XT", 0x1002, 0x747E, "1.3.280")], "missing", [], []), new("Radeon", @"PCI\VEN_1002&DEV_747E\1", Vendor.Amd, "oem9.inf", "32", 0, true));
+            Assert(apis.D3D12 == "Radeon RX 7800 XT · FL 12_2" && apis.Vulkan.Contains("1.3.280") && apis.OpenCl == "missing", apis.ToString());
+            var validation = new SwapValidation(1, "Swap", "0.6.0", DateTimeOffset.UtcNow, false, "Windows 11 · " + Environment.MachineName, "NVIDIA", "RTX 3070", "32.0", "AMD", "RX 7800 XT", "32.1",
+                true, 0, true, 23, 0, 1L << 31, 0, [new("pnpOk", "")], [], [new("d3d12Ok", "FL 12_2")], apis, ["Display · 2560×1440 · 144 Hz (max 165 Hz)"], [], SwapReport.Scope);
+            var markdown = SwapReport.Markdown(validation, code => code == "d3d12Ok" ? "Direct3D 12 available on the GPU" : code);
+            Assert(markdown.Contains("### Swap validation report") && markdown.Contains("23 removed") && markdown.Contains("2.0 GB") && markdown.Contains("Direct3D 12 available"), markdown);
+            Assert(!markdown.Contains(Environment.MachineName, StringComparison.OrdinalIgnoreCase) || Environment.MachineName.Length < 3, "computer name leaked");
+            Assert(!validation.Attention && (validation with { LeftoversAfter = 2 }).Attention && (validation with { GamesAfter = [new("vulkanNoTarget", "", true)] }).Attention);
             return Done();
         });
     }

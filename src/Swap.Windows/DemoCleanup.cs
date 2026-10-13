@@ -31,7 +31,12 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
         File(Path.Combine(ProgramFiles, "PhysX", "Common", "PhysXLoader.dll"), 1024);
         File(Path.Combine(Local, "NVIDIA", "DXCache", "shader.bin"), 65536);
         File(Path.Combine(Local, "D3DSCache", "cache.idx"), 32768);
+        foreach (var (relative, bytes) in SystemSeed) File(Path.Combine(WindowsRoot, relative), bytes);
     }
+    public string WindowsRoot => Path.Combine(Sandbox, "Windows");
+    // What nv_dispi.inf copies to System32/SysWOW64 in the simulated PC, plus one file only the setup log still ties to an old package.
+    private static readonly (string Relative, int Bytes)[] SystemSeed = [(@"System32\nvapi64.dll", 8192), (@"System32\nvcuda.dll", 16384), (@"SysWOW64\nvapi.dll", 4096),
+        (@"System32\vulkan-1.dll", 2048), (@"System32\OpenCL.dll", 2048), (@"System32\nvml.dll", 4096), (@"System32\amdxc64.dll", 4096)];
     private string ProgramFiles => Path.Combine(Sandbox, "Program Files", "NVIDIA Corporation");
     private string Local => Path.Combine(Sandbox, "Users", "Demo", "AppData", "Local");
     private string Store(string name) => Path.Combine(Sandbox, "DriverStore", name);
@@ -51,12 +56,23 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
         };
         var packages = new List<StorePackage>
         {
-            new("oem42.inf", "nv_dispi.inf", "NVIDIA", "Display", "32.0.15.6094", false, Store("nv_dispi.inf_amd64_demo"), 1_850_000_000, [@"PCI\VEN_10DE&DEV_2484"]),
+            new("oem42.inf", "nv_dispi.inf", "NVIDIA", "Display", "32.0.15.6094", false, Store("nv_dispi.inf_amd64_demo"), 1_850_000_000, [@"PCI\VEN_10DE&DEV_2484"],
+                [@"System32\nvapi64.dll", @"System32\nvcuda.dll", @"SysWOW64\nvapi.dll", @"System32\vulkan-1.dll", @"System32\OpenCL.dll"]),
             new("oem43.inf", "nvhda.inf", "NVIDIA Corporation", "MEDIA", "1.4.2.6", false, Store("nvhda.inf_amd64_demo"), 280_000, [@"HDAUDIO\FUNC_01&VEN_10DE&DEV_0094"]),
             new("oem44.inf", "nvvad.inf", "NVIDIA", "MEDIA", "4.65.0.3", false, Store("nvvad.inf_amd64_demo"), 120_000, [@"USB\VID_0955&PID_9000"]),
             new("oem45.inf", "nvppc.inf", "NVIDIA", "USB", "1.52.831.832", false, Store("nvppc.inf_amd64_demo"), 700_000, [@"PCI\VEN_10DE&DEV_1AD7"]),
             new("oem60.inf", "amdsmbus.inf", "Advanced Micro Devices, Inc", "System", "5.12.0.38", false, Store("amdsmbus.inf_amd64_demo"), 90_000, [@"PCI\VEN_1022&DEV_790B"]),
-            new("oem99.inf", "u0400000.inf", Target == Vendor.Amd ? "Advanced Micro Devices, Inc." : "NVIDIA", "Display", "32.0.1.100", false, Store("target_demo"), 1_200_000_000, [Hardware(Target)]),
+            new("oem99.inf", "u0400000.inf", Target == Vendor.Amd ? "Advanced Micro Devices, Inc." : "NVIDIA", "Display", "32.0.1.100", false, Store("target_demo"), 1_200_000_000, [Hardware(Target)],
+                [@"System32\amdxc64.dll", @"System32\vulkan-1.dll"]),
+        };
+        var companies = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["vulkan-1.dll"] = "LunarG, Inc.", ["OpenCL.dll"] = "Khronos Group", ["amdxc64.dll"] = "Advanced Micro Devices, Inc." };
+        var systemFiles = SystemSeed.Select(s => Path.Combine(WindowsRoot, s.Relative)).Where(System.IO.File.Exists).Select(p => new SystemFileEntry(p, new FileInfo(p).Length,
+            companies.TryGetValue(Path.GetFileName(p), out var company) ? company : "NVIDIA Corporation", Path.GetFileName(p) == "nvml.dll" ? "nv_dispi.inf_amd64_previous" : "")).ToArray();
+        var registrations = new List<RegistrationEntry>
+        {
+            new(@"HKLM\SOFTWARE\Khronos\OpenCL\Vendors", "nvopencl64.dll", Path.Combine(WindowsRoot, "System32", "nvopencl64.dll"), false, ""),
+            new(@"HKLM\SOFTWARE\Khronos\Vulkan\Drivers", Path.Combine(Store("nv_dispi.inf_amd64_demo"), "nv-vk64.json"), Path.Combine(Store("nv_dispi.inf_amd64_demo"), "nvoglv64.dll"), true, "NVIDIA Corporation"),
+            new(@"HKLM\SOFTWARE\Khronos\Vulkan\ImplicitLayers", @"C:\Program Files (x86)\Steam\SteamOverlayVulkanLayer64.json", @"C:\Program Files (x86)\Steam\SteamOverlayVulkanLayer64.dll", true, "Valve Corporation"),
         };
         var services = new List<ServiceEntry>
         {
@@ -87,8 +103,15 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
             tasks.Where(t => Keep("task:" + t.Key)).ToArray(), [], apps.Where(a => Keep("app:" + a.Key)).ToArray(),
             new[] { "NVIDIACorp.NVIDIAControlPanel" }.Where(a => Keep("appx:" + a)).ToArray(), folders,
             new[] { @"HKLM\SOFTWARE\NVIDIA Corporation", @"HKCU\SOFTWARE\NVIDIA Corporation" }.Where(k => Keep("registry:" + k)).ToArray(),
-            processes.Where(p => Keep("process:" + p.Id)).ToArray(), true, []));
+            processes.Where(p => Keep("process:" + p.Id)).ToArray(), true, [], systemFiles,
+            registrations.Where(r => Keep("registration:" + r.Key + "|" + r.Name)).ToArray(), WindowsRoot,
+            new[] { new ComServer(@"HKLM\SOFTWARE\Classes\CLSID\{60F44560-5A20-4857-BFEF-D29773CB8040}", "{60F44560-5A20-4857-BFEF-D29773CB8040}",
+                Path.Combine(Store("nv_dispi.inf_amd64_demo"), "nvEncMFTH264x.dll"), true, [@"HKLM\SOFTWARE\Microsoft\Windows Media Foundation\Transforms\{60F44560-5A20-4857-BFEF-D29773CB8040}"]) }
+                .Where(c => Keep("registry:" + c.Key)).ToArray(),
+            new[] { new LockdownEntry(LockdownKey,
+                Path.Combine(Store("nv_dispi.inf_amd64_demo"), "nvEncMFTH264x.dll"), true) }.Where(l => Keep("registry:" + l.Key)).ToArray()));
     }
+    public bool KeyExists(string key) => !removed.Contains("registry:" + key) && !removed.Contains("app:" + key);
 
     private async Task<CommandResult> Step(string call, string key, bool fail = false)
     {
@@ -106,7 +129,19 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
     public Task<CommandResult> RunUninstallerAsync(string key) => Step("uninstall:" + key, "app:" + key);
     public Task<CommandResult> RemoveDeviceAsync(string instanceId) => Step("remove-device:" + instanceId, "device:" + instanceId, FailDevices.Contains(instanceId));
     public async Task<CommandResult> ExportPackageAsync(string inf, string destination) => await Backup("export:" + inf, Path.Combine(destination, inf), "; simulated " + inf);
-    public Task<CommandResult> DeletePackageAsync(string inf) => Step("delete:" + inf, "package:" + inf, FailPackages.Contains(inf));
+    // Test hook: Windows dropping the package's protection entry together with the package.
+    public bool PackageDropsLockdown { get; set; }
+    public bool PackageDropsSystemFiles { get; set; }
+    public const string LockdownKey = @"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\PnpLockdownFiles\%SystemRoot%/System32/DriverStore/FileRepository/nv_dispi.inf_amd64_demo/nvEncMFTH264x.dll";
+    public async Task<CommandResult> DeletePackageAsync(string inf)
+    {
+        var result = await Step("delete:" + inf, "package:" + inf, FailPackages.Contains(inf));
+        if (result.Success && PackageDropsLockdown && inf == "oem42.inf") removed.Add("registry:" + LockdownKey);
+        // Current Windows deletes the System32 links of the package it removes, shared loaders included.
+        if (result.Success && PackageDropsSystemFiles && inf == "oem42.inf")
+            foreach (var relative in new[] { @"System32\nvapi64.dll", @"System32\nvcuda.dll", @"SysWOW64\nvapi.dll", @"System32\vulkan-1.dll", @"System32\OpenCL.dll" }) File.Delete(Path.Combine(WindowsRoot, relative));
+        return result;
+    }
     public Task<CommandResult> AddPackageAsync(string infPath) { Calls.Add("add:" + Path.GetFileName(infPath)); removed.Remove("package:" + Path.GetFileName(infPath)); return Task.FromResult(new CommandResult(0, "Simulated staging")); }
     public Task<CommandResult> StopServiceAsync(string name) { Calls.Add("stop-service:" + name); return Task.FromResult(new CommandResult(0, "")); }
     public Task<CommandResult> DeleteServiceAsync(string name) => Step("delete-service:" + name, "service:" + name);
@@ -126,4 +161,21 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
     public Task<CommandResult> DeleteStartupAsync(string key) => Step("delete-startup:" + key, "startup:" + key);
     public Task<CommandResult> RestoreStartupAsync(string file) { Calls.Add("restore-startup"); return Task.FromResult(new CommandResult(0, "Simulated startup")); }
     public Task<CommandResult> RemoveAppxAsync(string name) => Step("remove-appx:" + name, "appx:" + name);
+    // Files are really moved inside the sandbox; registrations are simulated.
+    public Task<CommandResult> QuarantineFileAsync(string path, string destination)
+    {
+        Calls.Add("quarantine:" + Path.GetFileName(path));
+        if (DeepCleanPlanner.SystemRelative(WindowsRoot, path) is null) return Task.FromResult(new CommandResult(87, "Outside the simulated Windows folder"));
+        File.Move(path, destination); return Task.FromResult(new CommandResult(0, "Simulated quarantine"));
+    }
+    public Task<CommandResult> RestoreFileAsync(string backup, string origin) { Calls.Add("restore-file:" + Path.GetFileName(origin)); File.Move(backup, origin); return Task.FromResult(new CommandResult(0, "Simulated restore")); }
+    public Task<CommandResult> ExportValueAsync(string key, string name, string file) => Backup("export-value:" + name, file, JsonSerializer.Serialize(new { key, name }));
+    public Task<CommandResult> DeleteValueAsync(string key, string name) => Step("delete-value:" + name, "registration:" + key + "|" + name);
+    public async Task<CommandResult> RestoreValueAsync(string file)
+    {
+        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(file));
+        var key = json.RootElement.GetProperty("key").GetString(); var name = json.RootElement.GetProperty("name").GetString();
+        Calls.Add("restore-value:" + name); removed.Remove("registration:" + key + "|" + name);
+        return new(0, "Simulated registration");
+    }
 }

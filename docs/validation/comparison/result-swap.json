@@ -1,0 +1,104 @@
+﻿{
+ "packages": {
+  "created": 4,
+  "left": [],
+  "cleaned": 4,
+  "collateral": [],
+  "added": []
+ },
+ "storeFolders": {
+  "created": 4,
+  "left": [],
+  "cleaned": 4,
+  "collateral": [],
+  "added": []
+ },
+ "devices": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [
+   "PCI\\VEN_1002&DEV_5159&SUBSYS_11001AF4&REV_00\\3&267a616a&0&20"
+  ],
+  "added": []
+ },
+ "services": {
+  "created": 4,
+  "left": [],
+  "cleaned": 4,
+  "collateral": [],
+  "added": []
+ },
+ "system32": {
+  "created": 48,
+  "left": [
+   "System32\\spp\\store\\2.0\\cache\\cache.dat|86768"
+  ],
+  "cleaned": 47,
+  "collateral": [],
+  "added": []
+ },
+ "syswow64": {
+  "created": 28,
+  "left": [],
+  "cleaned": 28,
+  "collateral": [],
+  "added": []
+ },
+ "programDirs": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": [
+   "C:\\ProgramData\\Swap",
+   "C:\\ProgramData\\Swap\\Cleanup"
+  ]
+ },
+ "registry": {
+  "created": 914,
+  "left": [],
+  "cleaned": 914,
+  "collateral": [],
+  "added": [
+   "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}|LastDeleteDate=14;130;145;78;230;90;221;1"
+  ]
+ },
+ "deviceIds": {
+  "created": 36,
+  "left": [],
+  "cleaned": 36,
+  "collateral": [],
+  "added": []
+ },
+ "com": {
+  "created": 4,
+  "left": [
+   "{EBB5845F-CA80-11CF-BD3C-008029E89281}|InprocServer32="
+  ],
+  "cleaned": 3,
+  "collateral": [],
+  "added": []
+ },
+ "tasks": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": []
+ },
+ "appx": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": []
+ },
+ "policy": {
+  "created": 0,
+  "left": [],
+  "cleaned": 0,
+  "collateral": [],
+  "added": []
+ }
+}

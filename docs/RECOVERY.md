@@ -16,11 +16,15 @@ Las entradas demo son ficticias y no se pueden restaurar en tu equipo. Si el cat
 
 ## Deshacer una limpieza profunda
 
-1. Abre **Limpieza** y pulsa **Deshacer la última limpieza**. Swap restaura, del más reciente al más antiguo, las claves de registro y entradas de Programas, servicios, tareas, inicios automáticos, carpetas en cuarentena y paquetes de driver (se vuelven a añadir al almacén).
+1. Abre **Limpieza** y pulsa **Deshacer la última limpieza**. Swap restaura, del más reciente al más antiguo, las claves de registro y entradas de Programas, registros de Vulkan/OpenCL, archivos devueltos a System32/SysWOW64 (con su entrada de protección PnP), servicios, tareas, inicios automáticos, carpetas en cuarentena y paquetes de driver (se vuelven a añadir al almacén). Un archivo no se devuelve si ya existe otro con el mismo nombre en su lugar.
 2. Reinicia para que Windows vuelva a cargar los servicios restaurados.
 3. No vuelven por esta vía: entradas de dispositivos desconectados (Windows las crea de nuevo si el hardware regresa), apps de la Tienda (reinstálalas desde la Tienda) y cachés (se regeneran).
 
 Los respaldos están en `%ProgramData%\Swap\Cleanup\<sesión>`, accesibles solo para administradores. Si una cuarentena fue modificada, no se restaura y la sesión lo indica. Para liberar ese espacio cuando ya no necesites deshacer, borra la carpeta de esa sesión como administrador. Windows también conserva el punto de restauración creado antes de la limpieza, si la protección del sistema está activa.
+
+## Cambio de tarjeta preparado
+
+Si pulsaste **Voy a cambiar de tarjeta** y al final no cambias la tarjeta, abre Swap y pulsa **Cancelar el cambio**: se borra la preparación y la entrada RunOnce; el respaldo se conserva en Recuperación. Si al encender no aparece la tarjeta nueva, Swap lo avisa y vuelve a comprobar en el siguiente inicio; tras 10 inicios sin una tarjeta nueva la preparación caduca. Con la tarjeta anterior otra vez conectada, Swap solo espera.
 
 ## Sin escritorio operativo
 

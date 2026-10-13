@@ -120,6 +120,42 @@ public partial class MainWindow
                     throw new InvalidOperationException("Exported diagnostic report metadata or inventory failed.");
             }
             results.Add(new { scenario="diagnostic-report-export-demo",passed=true });
+            // Graphics APIs as games see them: missing on the basic adapter, available once the driver is installed.
+            platform = new DemoPlatform { Target = Vendor.Amd }; await AnalyzeAsync();
+            if (!GamesText.Text.Contains(T("d3d12Missing")) || !GpuHealthSummary.Text.Contains(T("gamesAttention"))) throw new InvalidOperationException("Basic adapter shown as ready for games.");
+            await Guard(() => AutomaticAsync(false));
+            DiagnosticsNav.IsChecked = true; GamesDisclosure.IsExpanded = true; UpdateLayout(); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            if (!GamesText.Text.Contains(T("d3d12Ok")) || !GamesText.Text.Contains(T("vulkanOk")) || !GpuHealthSummary.Text.Contains(T("gamesReady"))) throw new InvalidOperationException("Game readiness missing: " + GamesText.Text);
+            var gameIssues = new List<string>(); InspectLayout(DiagnosticsPage, gameIssues);
+            if (gameIssues.Count > 0) throw new InvalidOperationException("Games layout: " + string.Join(", ", gameIssues));
+            Capture(Path.Combine(output, "games-apis.png")); GamesDisclosure.IsExpanded = false;
+            results.Add(new { scenario = "games-apis-demo", passed = true });
+            // Guided card change: prepared on an NVIDIA card, opened again with an AMD card, installed, cleaned up and reported.
+            if (File.Exists(IntentFile)) File.Delete(IntentFile);
+            platform = new DemoPlatform { Target = Vendor.Nvidia }; cleanupPlatform = null; await AnalyzeAsync(); HomeNav.IsChecked = true;
+            await Operation(PrepareSwapCoreAsync);
+            if (swapIntent is not { Phase: "prepared", FromVendor: Vendor.Nvidia } || SwapBanner.Visibility != Visibility.Visible || PrepareButton.IsEnabled || !File.Exists(IntentFile))
+                throw new InvalidOperationException("Card change preparation failed.");
+            UpdateLayout(); Capture(Path.Combine(output, "swap-prepared.png"));
+            platform = new DemoPlatform { Target = Vendor.Amd }; await AnalyzeAsync();
+            swapIntent = LoadIntent(); await ResumeSwapAsync();
+            if (swapState != "swapped" || TargetAdapter?.Vendor != Vendor.Amd || swapIntent?.Starts != 1) throw new InvalidOperationException("New card not detected: " + swapState);
+            UpdateLayout(); Capture(Path.Combine(output, "swap-detected.png"));
+            await StartSwapInstallAsync();
+            if (swapState != "done" || swapIntent is not null || File.Exists(IntentFile) || lastValidationPath is null || !File.Exists(lastValidationPath) || lastValidation is not { DriverVerified: true, CleanupRemoved: > 0, LeftoversAfter: 0 })
+                throw new InvalidOperationException($"Card change did not finish: {swapState} {lastValidation}");
+            var markdown = await File.ReadAllTextAsync(lastValidationPath);
+            if (!markdown.Contains("### Swap validation report") || !markdown.Contains("Simulated demo") || !markdown.Contains("Direct3D 12 available") ||
+                Environment.UserName.Length >= 3 && markdown.Contains(Environment.UserName, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Validation report content failed.");
+            foreach (var language in new[] { "es", "de" })
+            {
+                preferences = new(language, "dark"); dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); RelabelSwap();
+                Width = 880; Height = 640; UpdateLayout(); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+                var swapIssues = new List<string>(); InspectLayout(HomePage, swapIssues);
+                if (swapIssues.Count > 0) throw new InvalidOperationException("Card change banner layout " + language + ": " + string.Join(", ", swapIssues));
+            }
+            Capture(Path.Combine(output, "swap-done.png")); Width = 1120; Height = 810;
+            results.Add(new { scenario = "guided-card-change-demo", passed = true, lastValidation.CleanupRemoved, report = Path.GetFileName(lastValidationPath) });
             File.WriteAllText(Path.Combine(output, "results.json"), JsonSerializer.Serialize(new { passed = results.Count, failed = 0, scope = "Actual WPF rendering + simulated workflow. No physical driver operations.", results }, new JsonSerializerOptions { WriteIndented = true }));
             Application.Current.Shutdown(0);
         }

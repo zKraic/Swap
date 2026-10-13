@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: Swap version and Windows build
-      placeholder: "Swap 0.5.0 preview; Windows 11 x64, build ..."
+      placeholder: "Swap 0.6.0 preview; Windows 11 x64, build ..."
     validations:
       required: true
   - type: input
@@ -26,6 +26,7 @@ body:
       label: Operation actually tested
       options:
         - Demo or virtual machine only
+        - Guided card change ("I'm changing my card")
         - Physical GPU transition using Windows Update
         - Maintenance with an already healthy driver
         - Deep cleanup of a disconnected brand
@@ -42,6 +43,17 @@ body:
       description: "State whether the new card was already connected. Include the offered/active driver version, whether installation ran, cleanup outcome and any restart. Separate actual observations from assumptions."
     validations:
       required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Swap validation report
+      description: "Paste the report from Diagnostics → Validation report or from Copy for GitHub at the end of a card change. It omits machine identifiers and account names; review it anyway."
+      render: markdown
+  - type: textarea
+    id: games
+    attributes:
+      label: Games actually played afterwards (optional)
+      description: "Name, API if known (DirectX 11/12, Vulkan, OpenGL), settings and what happened. Only games you ran on this hardware."
   - type: textarea
     id: evidence
     attributes:

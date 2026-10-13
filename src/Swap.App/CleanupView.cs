@@ -133,7 +133,8 @@ public partial class MainWindow
     // After a verified driver change, remove leftovers of disconnected brands that need no manual review.
     private async Task AutoCleanupAsync(CancellationToken token)
     {
-        if (!preferences.DeepClean || readOnly) return;
+        // A prepared card change asked for the cleanup explicitly.
+        if (!preferences.DeepClean && !swapCleanup || readOnly) return;
         try
         {
             var inventory = await Cleanup.InventoryAsync(token);
@@ -145,6 +146,7 @@ public partial class MainWindow
             if (!keys.Any(k => !k.StartsWith("process:", StringComparison.Ordinal))) return;
             Log(T("cleanupTitle") + " · " + string.Join(", ", plan.Vendors.Select(VendorLabel)));
             var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, Stage);
+            lastCleanup = outcome;
             Log(string.Format(T("cleanupDone"), outcome.Done, outcome.Failed, Size(outcome.Freed) is { Length: > 0 } size ? size : "0 KB"));
         }
         // The driver change already succeeded; a leftover that needs review must not turn it into a failure.

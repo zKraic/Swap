@@ -88,4 +88,44 @@ static class LabTests
             Console.WriteLine($"Deep cleanup lab: removed={outcome.Done}; restored={undo.Results.Count(r => r.Status == "restored")}; freed={outcome.Freed} bytes.");
         });
     }
+
+    // Comparison lab (isolated guest only): the real AMD display driver was bound to an emulated Radeon that was then removed.
+    // Swap plans and runs exactly what the app runs after a verified driver change: candidate brands and their default selection.
+    private static readonly System.Text.Json.JsonSerializerOptions Indented = new() { WriteIndented = true };
+    public static async Task AmdCleanupAsync(Func<string, Func<Task>, Task> test, Action<bool, string> assert, string output)
+    {
+        await test("Real guest cleanup of a removed AMD card with the default selection", async () =>
+        {
+            if (Environment.MachineName != "SWAPTESTVM") throw new InvalidOperationException("The comparison lab belongs only in the isolated guest.");
+            Directory.CreateDirectory(output);
+            var watch = Stopwatch.StartNew(); var platform = new WindowsCleanupPlatform();
+            var inventory = await platform.InventoryAsync();
+            var candidates = DeepCleanPlanner.Candidates(inventory);
+            Console.WriteLine($"inventory {watch.Elapsed.TotalSeconds:0}s admin={inventory.Admin} complete={inventory.Complete} files={inventory.SystemFiles?.Count} registrations={inventory.Registrations?.Count} candidates={string.Join(",", candidates)}");
+            assert(inventory.Admin && inventory.Complete && candidates.Contains(Vendor.Amd), "AMD not detected as an absent brand: " + string.Join("; ", inventory.Warnings));
+            var plan = DeepCleanPlanner.Create(inventory, candidates);
+            foreach (var item in plan.Items) Console.WriteLine($"plan {item.Kind} {item.Target} [{item.Reason}] selected={item.Selected}");
+            foreach (var item in plan.Kept) Console.WriteLine($"kept {item.Kind} {item.Target} [{item.Reason}]");
+            var selected = plan.Items.Where(i => i.Selected && i.Kind != RemnantKind.Uninstaller).Select(i => i.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var session = Path.Combine(output, "Sessions", DateTime.Now.ToString("yyyyMMdd-HHmmss") + "-CLEAN-" + Guid.NewGuid().ToString("N")[..6]);
+            var outcome = await new DeepCleanEngine(platform).RunAsync(plan, selected, session, WindowsCleanupPlatform.SecureRoot(), text => Console.WriteLine("clean: " + text));
+            foreach (var result in outcome.Results) Console.WriteLine($"result {result.Status} {result.Kind} {result.Target} {result.Message}");
+            File.WriteAllText(Path.Combine(output, "swap-cleanup.json"), System.Text.Json.JsonSerializer.Serialize(new { seconds = watch.Elapsed.TotalSeconds, candidates, plan, outcome.Results, outcome.Done, outcome.Failed, outcome.Freed, outcome.RestartRecommended, session }, Indented));
+            File.WriteAllText(Path.Combine(output, "session.txt"), session);
+            Console.WriteLine($"Comparison lab: removed={outcome.Done}; review={outcome.Failed}; freed={outcome.Freed} bytes; restart={outcome.RestartRecommended}; {watch.Elapsed.TotalSeconds:0}s.");
+            assert(outcome.Failed == 0, "items to review: " + string.Join(", ", outcome.Results.Where(r => r.Status == "failed").Select(r => r.Key + " " + r.Message)));
+        });
+    }
+    public static async Task UndoAsync(Func<string, Func<Task>, Task> test, Action<bool, string> assert, string session)
+    {
+        await test("Real guest undo of the comparison cleanup", async () =>
+        {
+            if (Environment.MachineName != "SWAPTESTVM") throw new InvalidOperationException("The comparison lab belongs only in the isolated guest.");
+            var undo = await new DeepCleanEngine(new WindowsCleanupPlatform()).UndoAsync(session, WindowsCleanupPlatform.SecureRoot(), text => Console.WriteLine("undo: " + text));
+            foreach (var result in undo.Results) Console.WriteLine($"undo {result.Status} {result.Kind} {result.Target} {result.Message}");
+            File.WriteAllText(Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(session))!, "swap-undo.json"), System.Text.Json.JsonSerializer.Serialize(undo.Results, Indented));
+            Console.WriteLine($"Comparison undo: restored={undo.Results.Count(r => r.Status == "restored")}; skipped={undo.Results.Count(r => r.Status == "skipped")}; failed={undo.Results.Count(r => r.Status == "failed")}.");
+            assert(!undo.Results.Any(r => r.Status == "failed"), "undo failures");
+        });
+    }
 }

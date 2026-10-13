@@ -46,6 +46,19 @@ public static class Vendors
         ["Intel"] = Vendor.Intel, ["Intel Corporation"] = Vendor.Intel, ["Intel(R) Corporation"] = Vendor.Intel,
     };
     public static Vendor FromProvider(string provider) => Providers.TryGetValue(provider.Trim(), out var vendor) ? vendor : Vendor.Unknown;
+    // File version "CompanyName" of vendor binaries, including the ATI era. Exact after removing punctuation and trademark marks.
+    private static readonly Dictionary<string, Vendor> Companies = new(StringComparer.Ordinal)
+    {
+        ["nvidia corporation"] = Vendor.Nvidia, ["nvidia"] = Vendor.Nvidia,
+        ["advanced micro devices inc"] = Vendor.Amd, ["advanced micro devices"] = Vendor.Amd, ["amd"] = Vendor.Amd,
+        ["ati technologies inc"] = Vendor.Amd, ["ati technologies ulc"] = Vendor.Amd, ["ati technologies"] = Vendor.Amd,
+        ["intel corporation"] = Vendor.Intel, ["intel"] = Vendor.Intel,
+    };
+    public static Vendor FromCompany(string company)
+    {
+        var text = company.ToLowerInvariant().Replace("(r)", "").Replace("®", "").Replace("(tm)", "").Replace("™", "").Replace(",", " ").Replace(".", " ");
+        return Companies.TryGetValue(string.Join(' ', text.Split(' ', StringSplitOptions.RemoveEmptyEntries)), out var vendor) ? vendor : Vendor.Unknown;
+    }
     public static bool Matches(string hardwareId, string instanceId) =>
         instanceId.StartsWith(hardwareId + "\\", StringComparison.OrdinalIgnoreCase) ||
         instanceId.StartsWith(hardwareId + "&", StringComparison.OrdinalIgnoreCase) ||

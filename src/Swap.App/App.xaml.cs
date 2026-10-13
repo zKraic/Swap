@@ -7,6 +7,8 @@ public partial class App : Application
 {
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Child process of the graphics API check: no window, no elevation, no preferences.
+        if (e.Args.Length == 1 && e.Args[0] == Swap.Windows.ApiProbe.Argument) { Shutdown(Swap.Windows.ApiProbe.WriteReport()); return; }
         Preferences.Load().Apply();
         bool demo = e.Args.Contains("--demo") || e.Args.Any(a => a.StartsWith("--ui-audit="));
         bool readonlyMode = e.Args.Contains("--readonly");

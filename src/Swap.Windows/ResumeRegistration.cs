@@ -25,6 +25,16 @@ public static class ResumeRegistration
         executable=Path.GetFullPath(executable);session=Path.GetFullPath(session);
         var parent=Directory.GetParent(session);
         if(parent?.Name!="Sessions" || !File.Exists(Path.Combine(session,"state.json")))throw new IOException("Sesión de continuación inválida.");
+        var (cached,hash)=await CacheAsync(executable);
+        var pending=new Pending(session,parent.Parent!.FullName,hash);
+        File.WriteAllText(Marker+".tmp",JsonSerializer.Serialize(pending));File.Move(Marker+".tmp",Marker,true);
+        using var key=Registry.CurrentUser.CreateSubKey(RunOnce);
+        key.SetValue(ValueName,'"'+cached+"\" --continue",RegistryValueKind.String);
+    }
+    // A local copy keeps working when the original EXE was on a removable drive.
+    internal static async Task<(string Cached,string Hash)> CacheAsync(string executable)
+    {
+        executable=Path.GetFullPath(executable);
         if(FileVersionInfo.GetVersionInfo(executable).CompanyName!="KraicDev")throw new IOException("El ejecutable no corresponde a Swap.");
         Directory.CreateDirectory(DirectoryPath);
         if((File.GetAttributes(DirectoryPath)&FileAttributes.ReparsePoint)!=0)throw new IOException("La carpeta de continuación no puede ser un enlace.");
@@ -36,11 +46,9 @@ public static class ResumeRegistration
             using(var output=new FileStream(cached+".tmp",FileMode.Create,FileAccess.Write,FileShare.None))await source.CopyToAsync(output);
             File.Move(cached+".tmp",cached,true);
         }
-        var pending=new Pending(session,parent.Parent!.FullName,hash);
-        File.WriteAllText(Marker+".tmp",JsonSerializer.Serialize(pending));File.Move(Marker+".tmp",Marker,true);
-        using var key=Registry.CurrentUser.CreateSubKey(RunOnce);
-        key.SetValue(ValueName,'"'+cached+"\" --continue",RegistryValueKind.String);
+        return (cached,hash);
     }
+    internal static string Folder=>DirectoryPath;
     public static void Clear()
     {
         using var key=Registry.CurrentUser.OpenSubKey(RunOnce,true);key?.DeleteValue(ValueName,false);

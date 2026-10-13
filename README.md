@@ -14,6 +14,10 @@ With the new card connected, **Install and clean** finds a matching Display driv
 
 Windows keeps a removed card as a *disconnected device* that still owns its driver package, and refuses to delete that package. Swap removes only that disconnected entry of the same brand first, then the package. (Versions up to 0.4.2 stopped at this point on a real swap.)
 
+### I'm changing my card
+
+Press **I'm changing my card** before you shut down. Swap backs up the graphics drivers and records how games and displays see the current card. Change the card and power on: after sign-in Swap opens by itself, recognizes the new card, gives you 20 seconds to cancel, installs its driver, removes the old brand with a backup and hands you a **validation report**. The old card still connected, no new card detected, several new cards and a driver restart are handled; nothing is shut down or restarted without your confirmation.
+
 ## Deep cleanup
 
 ![Deep cleanup preview in demo mode](.github/media/cleanup-dark-en.png)
@@ -23,8 +27,9 @@ The **Cleanup** page does what people usually run Display Driver Uninstaller for
 | Removed with evidence | Kept on purpose |
 |---|---|
 | Disconnected GPU, HDMI-audio and USB-C devices; vendor virtual devices | Anything of a brand that is still connected |
-| Driver packages of every graphics class (Display, HDMI audio, USB-C, software components, extensions) | AMD chipset (VEN_1022), Intel network/storage/platform packages |
+| Driver packages of every graphics class (Display, HDMI audio, USB-C, extensions) and the software components they create (OpenCL, support components) | AMD chipset (VEN_1022), Intel network/storage/platform packages |
 | Services, scheduled tasks and startup entries whose program is gone or being removed | PhysX (some games need it on any GPU) |
+| Files a driver left in System32/SysWOW64, Vulkan/OpenCL registrations, COM codecs and Media Foundation transforms, PnP protection entries | The shared Vulkan/OpenCL loaders and Microsoft runtimes; overlay layers of Steam, OBS, RTSS, Overwolf, Epic, Rockstar |
 | Control panels from the Store, vendor folders (quarantined), shader caches, settings keys, orphaned Programs entries | The processor's integrated GPU and laptops: shown unselected |
 
 Ownership comes from device instances and the hardware IDs in each driver's INF, not from product names. Every item shows why it qualifies and can be unselected. Before changing anything Swap creates a restore point, exports packages and registry data and moves folders to an integrity-sealed quarantine in `%ProgramData%\Swap\Cleanup` (Administrators and SYSTEM only). **Undo last cleanup** restores everything that has a backup; removed disconnected devices, Store apps and caches come back on their own when needed.
@@ -34,10 +39,10 @@ The same page can remove **older unused versions of the current driver** (often 
 | Graphics | Recovery | Diagnostics |
 |---|---|---|
 | Hardware-matched download and installation | **Independent graphics backup** with file integrity checks | GPU presence, PnP status and signed driver |
-| Resume when Windows requires a restart | Signed INF library, compatible backup restore and cleanup undo | Hardware Direct3D, resolution, Hz and **PCIe lanes** |
-| Stop on uncertainty; preserve present GPUs | Local history and support reports | **Highest refresh rate** with keep/revert, incidents, before/after |
+| Guided card change; resume when Windows requires a restart | Signed INF library, compatible backup restore and cleanup undo | **Games: Direct3D 12, Vulkan and OpenCL** as the runtimes see the GPU |
+| Stop on uncertainty; preserve present GPUs | Local history and support reports | Resolution, **highest refresh rate** with keep/revert, **PCIe lanes**, incidents, before/after, **validation report** |
 
-After a swap Windows often runs the monitor at 60 Hz; Diagnostics offers the highest rate the display reports and reverts after 15 seconds unless you keep it. A card running with fewer PCIe lanes than it supports (wrong slot or not fully seated) is flagged. [Critical review of 0.5.0](docs/REVIEW-050.md).
+**Games** asks Direct3D 12, Vulkan and OpenCL themselves, in a separate Swap process, which GPU they see, and warns when Vulkan or OpenCL still point to the old brand or do not see the new card. After a swap Windows often runs the monitor at 60 Hz; Diagnostics offers the highest rate the display reports and reverts after 15 seconds unless you keep it. A card running with fewer PCIe lanes than it supports (wrong slot or not fully seated) is flagged. The **validation report** is English Markdown for a GitHub hardware issue, without machine identifiers or account names. [Measured comparison with DDU](docs/COMPARISON-DDU.md) · [Critical review of 0.5.0](docs/REVIEW-050.md).
 
 ## Download and open
 
@@ -76,6 +81,6 @@ Build runs logic tests and creates the single EXE plus checksum. [Contribute](CO
 
 Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Distributed modifications must provide corresponding source under the GPL and retain required notices. Commercial reuse is allowed; impersonation or presenting a fork as official is not authorized by the [brand policy](TRADEMARKS.md). Official downloads remain free, without ads or subscriptions.
 
-Official repository: **[zKraic/Swap](https://github.com/zKraic/Swap)**. NVIDIA, AMD, Intel and Microsoft do not sponsor or certify Swap. Their drivers are not bundled. Display Driver Uninstaller is an independent project and is not used or included. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Privacy](docs/PRIVACY.md) · [Code signing policy](docs/SIGNING.md).
+Official repository: **[zKraic/Swap](https://github.com/zKraic/Swap)**. NVIDIA, AMD, Intel and Microsoft do not sponsor or certify Swap. Their drivers are not bundled. Display Driver Uninstaller is an independent project by Wagnardsoft; it is not used or included, and was run only inside an isolated virtual machine for the published comparison. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Privacy](docs/PRIVACY.md) · [Code signing policy](docs/SIGNING.md).
 
 0.5.0 adds deep cleanup, fixes cleanup after a real card removal, and adds PCIe-lane and refresh-rate checks. [Changelog](CHANGELOG.md) · [Community and hardware results](docs/COMMUNITY.md).

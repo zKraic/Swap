@@ -44,8 +44,198 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
             return new CommandEntry(t.Path, t.Path, files, files.Length > 0 && files.All(File.Exists));
         }).ToArray();
         var (cpuVendor, cpuName) = Cpu();
+        var systemFiles = await Task.Run(() => SystemFiles(packages, warnings), token);
+        var deployed = systemFiles.Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return new(ps.MachineId, cpuVendor, cpuName, ps.Admin, ps.Laptop, devices, packages, Services(), active, tasks, Startup(), Apps(), ps.Appx ?? [],
-            await Task.Run(Folders, token), RegistryKeys(), Processes(), ps.Complete && ps.Admin, warnings);
+            await Task.Run(Folders, token), RegistryKeys(), Processes(), ps.Complete && ps.Admin, warnings, systemFiles, Registrations(),
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows), await Task.Run(() => ComServers(deployed), token), await Task.Run(() => LockdownEntries(deployed), token));
+    }
+
+    // Protection entries of driver-deployed files: Driver Store files and System32 files a package deployed.
+    private static LockdownEntry[] LockdownEntries(IReadOnlySet<string> deployed)
+    {
+        var result = new List<LockdownEntry>();
+        try
+        {
+            using var root = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var key = root.OpenSubKey(Lockdown); if (key is null) return [];
+            foreach (var name in key.GetSubKeyNames().Take(200000))
+            {
+                var path = Environment.ExpandEnvironmentVariables(name.Replace('/', '\\'));
+                if (!path.Contains(@"\DriverStore\FileRepository\", StringComparison.OrdinalIgnoreCase) && !deployed.Contains(path)) continue;
+                result.Add(new(@"HKLM\" + Lockdown + @"\" + name, path, File.Exists(path)));
+            }
+        }
+        catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { }
+        return result.ToArray();
+    }
+    public bool KeyExists(string key)
+    {
+        try { using var registry = OpenPath(key); return registry is not null; }
+        catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { return true; }
+    }
+    public bool KeyEmpty(string key)
+    {
+        try { using var registry = OpenPath(key); return registry is { SubKeyCount: 0, ValueCount: 0 }; }
+        catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { return false; }
+    }
+
+    // COM classes whose server is a Driver Store file or a System32 file a package deployed (vendor encoders and decoders), with their
+    // Media Foundation transform registrations and the copies Windows keeps of driver-installed registry data (Setup\PnpResources).
+    private const string PnpResources = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\PnpResources\Registry\HKCR";
+    private const string PnpResources32 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Setup\PnpResources\Registry\HKCR\Wow6432Node";
+    private static ComServer[] ComServers(IReadOnlySet<string> deployed)
+    {
+        var result = new List<ComServer>();
+        using var root = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+        var related = new Dictionary<Guid, List<string>>();
+        void Add(Guid id, string key) { if (!related.TryGetValue(id, out var list)) related[id] = list = []; list.Add(@"HKLM\" + key); }
+        bool Exists(string key)
+        {
+            try { using var found = root.OpenSubKey(key); return found is not null; }
+            catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { return false; }
+        }
+        // Transform names are GUIDs without braces; CLSID keys have them.
+        foreach (var (classes, mirror) in new[] { (@"SOFTWARE\Classes", PnpResources), (@"SOFTWARE\Classes\WOW6432Node", PnpResources32) })
+        {
+            try
+            {
+                var transforms = classes + @"\MediaFoundation\Transforms";
+                using var mft = root.OpenSubKey(transforms); if (mft is null) continue;
+                foreach (var name in mft.GetSubKeyNames())
+                {
+                    if (!Guid.TryParse(name, out var id)) continue;
+                    Add(id, transforms + @"\" + name);
+                    if (Exists(mirror + @"\MediaFoundation\Transforms\" + name)) Add(id, mirror + @"\MediaFoundation\Transforms\" + name);
+                }
+                using var categories = mft.OpenSubKey("Categories");
+                foreach (var category in categories?.GetSubKeyNames() ?? [])
+                {
+                    using var members = categories!.OpenSubKey(category);
+                    foreach (var name in members?.GetSubKeyNames() ?? [])
+                    {
+                        if (!Guid.TryParse(name, out var id)) continue;
+                        var path = @"\MediaFoundation\Transforms\Categories\" + category + @"\" + name;
+                        Add(id, transforms + @"\Categories\" + category + @"\" + name);
+                        if (Exists(mirror + path)) Add(id, mirror + path);
+                    }
+                }
+            }
+            catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { }
+        }
+        foreach (var (classes, mirror) in new[] { (@"SOFTWARE\Classes\CLSID", PnpResources + @"\CLSID"), (@"SOFTWARE\WOW6432Node\Classes\CLSID", PnpResources32 + @"\CLSID") })
+        {
+            try
+            {
+                using var clsids = root.OpenSubKey(classes); if (clsids is null) continue;
+                foreach (var clsid in clsids.GetSubKeyNames().Take(50000))
+                {
+                    if (!Guid.TryParse(clsid, out var id)) continue;
+                    foreach (var kind in new[] { "InprocServer32", "LocalServer32" })
+                    {
+                        using var server = clsids.OpenSubKey(clsid + @"\" + kind);
+                        if (server?.GetValue("", null, RegistryValueOptions.DoNotExpandEnvironmentNames) is not string value || value.Length == 0) continue;
+                        var file = CommandFiles.Parse(value).FirstOrDefault() ?? Environment.ExpandEnvironmentVariables(value.Trim('"'));
+                        // System32 servers count only when a driver package deployed that file.
+                        if (!file.Contains(@"\DriverStore\FileRepository\", StringComparison.OrdinalIgnoreCase) && !deployed.Contains(file)) continue;
+                        var keys = related.TryGetValue(id, out var transforms) ? new List<string>(transforms) : [];
+                        if (Exists(mirror + @"\" + clsid)) keys.Add(@"HKLM\" + mirror + @"\" + clsid);
+                        result.Add(new(@"HKLM\" + classes + @"\" + clsid, clsid, file, File.Exists(file), keys.ToArray()));
+                        break;
+                    }
+                }
+            }
+            catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { }
+        }
+        return result.ToArray();
+    }
+
+    // Candidates come only from package evidence: the INF of every package in the store and the copies recorded in the setup log.
+    private static SystemFileEntry[] SystemFiles(IEnumerable<StorePackage> packages, List<string> warnings)
+    {
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var candidates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var relative in packages.SelectMany(p => p.SystemFiles ?? [])) candidates.TryAdd(Path.GetFullPath(Path.Combine(windows, relative)), "");
+        try
+        {
+            foreach (var (target, source) in SetupLog.Copies(SetupLogLines(windows)))
+                if (DeepCleanPlanner.SystemRelative(windows, target) is not null) candidates[Path.GetFullPath(target)] = source;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { warnings.Add("Setup log unavailable: " + e.GetType().Name); }
+        var result = new List<SystemFileEntry>();
+        foreach (var (path, source) in candidates.Take(20000))
+        {
+            try
+            {
+                var info = new FileInfo(path);
+                if (!info.Exists || (info.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+                result.Add(new(info.FullName, info.Length, Company(info.FullName), source));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { }
+        }
+        return result.ToArray();
+    }
+    // Current and archived setupapi.dev logs, read while Windows keeps them open; bounded in total size.
+    private static IEnumerable<string> SetupLogLines(string windows)
+    {
+        long budget = 256L * 1024 * 1024;
+        var folder = Path.Combine(windows, "INF");
+        foreach (var log in Directory.EnumerateFiles(folder, "setupapi.dev*.log").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+        {
+            var info = new FileInfo(log);
+            if ((info.Attributes & FileAttributes.ReparsePoint) != 0 || (budget -= info.Length) < 0) yield break;
+            using var stream = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream, Encoding.UTF8, true);
+            while (reader.ReadLine() is { } line) yield return line;
+        }
+    }
+    private static string Company(string path)
+    {
+        try { return FileVersionInfo.GetVersionInfo(path).CompanyName?.Trim() ?? ""; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return ""; }
+    }
+
+    // Vulkan drivers and layers and OpenCL vendors registered for the Khronos loaders, native and 32-bit views.
+    private static readonly string[] KhronosKeys = [@"HKLM\SOFTWARE\Khronos\Vulkan\Drivers", @"HKLM\SOFTWARE\Khronos\Vulkan\ImplicitLayers", @"HKLM\SOFTWARE\Khronos\Vulkan\ExplicitLayers",
+        @"HKLM\SOFTWARE\Khronos\OpenCL\Vendors", @"HKLM\SOFTWARE\WOW6432Node\Khronos\Vulkan\Drivers", @"HKLM\SOFTWARE\WOW6432Node\Khronos\Vulkan\ImplicitLayers",
+        @"HKLM\SOFTWARE\WOW6432Node\Khronos\Vulkan\ExplicitLayers", @"HKLM\SOFTWARE\WOW6432Node\Khronos\OpenCL\Vendors"];
+    private static RegistrationEntry[] Registrations()
+    {
+        var result = new List<RegistrationEntry>();
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        foreach (var path in KhronosKeys)
+        {
+            try
+            {
+                using var key = OpenPath(path); if (key is null) continue;
+                var system = Path.Combine(windows, path.Contains("WOW6432Node", StringComparison.OrdinalIgnoreCase) ? "SysWOW64" : "System32");
+                foreach (var name in key.GetValueNames().Where(n => n.Length > 0).Take(500))
+                {
+                    // OpenCL vendors may be bare DLL names that the loader finds through the system folder.
+                    var file = Path.IsPathRooted(name) ? name : name.IndexOfAny(['\\', '/']) < 0 ? Path.Combine(system, name) : "";
+                    bool exists = file.Length > 0 && File.Exists(file); var library = file;
+                    if (file.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) { library = exists ? ManifestLibrary(file, system) : ""; exists = exists && library.Length > 0 && File.Exists(library); }
+                    result.Add(new(path, name, library, exists, exists ? Company(library) : ""));
+                }
+            }
+            catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { }
+        }
+        return result.ToArray();
+    }
+    private static string ManifestLibrary(string manifest, string system)
+    {
+        try
+        {
+            if (new FileInfo(manifest).Length > 1024 * 1024) return "";
+            using var json = JsonDocument.Parse(File.ReadAllText(manifest));
+            var root = json.RootElement; JsonElement section;
+            if (!root.TryGetProperty("ICD", out section) && !root.TryGetProperty("layer", out section))
+                section = root.TryGetProperty("layers", out var layers) && layers.ValueKind == JsonValueKind.Array && layers.GetArrayLength() > 0 ? layers[0] : default;
+            if (section.ValueKind != JsonValueKind.Object || !section.TryGetProperty("library_path", out var value) || value.GetString() is not { Length: > 0 } library) return "";
+            library = library.Replace('/', '\\');
+            return Path.IsPathRooted(library) ? library : library.Contains('\\') ? Path.GetFullPath(Path.Combine(Path.GetDirectoryName(manifest)!, library)) : Path.Combine(system, library);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException) { return ""; }
     }
 
     private static (DeviceNode[] Devices, string[] Active) Devices(List<string> warnings)
@@ -115,14 +305,14 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
 
     private static StorePackage Package(PsPackage p)
     {
-        var folder = Path.GetDirectoryName(p.Original) ?? ""; IReadOnlyList<string> ids = []; long bytes = 0; var provider = p.Provider; var cls = p.Class;
+        var folder = Path.GetDirectoryName(p.Original) ?? ""; IReadOnlyList<string> ids = [], files = [], components = []; long bytes = 0; var provider = p.Provider; var cls = p.Class;
         try
         {
             var store = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "DriverStore", "FileRepository");
             if (folder.Length > 0 && DeepCleanPlanner.Within(folder, store) && File.Exists(p.Original) && new FileInfo(p.Original).Length < 32 * 1024 * 1024)
             {
                 var summary = InfReader.Read(File.ReadAllText(p.Original));
-                ids = summary.HardwareIds;
+                ids = summary.HardwareIds; files = summary.SystemFiles ?? []; components = summary.ComponentIds ?? [];
                 if (provider.Length == 0) provider = summary.Provider;
                 if (cls.Length == 0) cls = summary.Class;
                 bytes = Measure(folder);
@@ -130,7 +320,7 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
             else folder = "";
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-        return new(p.Inf, Path.GetFileName(p.Original), provider, cls, p.Version, p.BootCritical, folder, bytes, ids);
+        return new(p.Inf, Path.GetFileName(p.Original), provider, cls, p.Version, p.BootCritical, folder, bytes, ids, files, components);
     }
 
     private static ServiceEntry[] Services()
@@ -382,6 +572,119 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
         }
         catch (ArgumentException) { return new(0, "Process already exited."); }
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or OperationCanceledException) { return new(1, e.Message); }
+    }
+
+    // ---- Vendor files in System32/SysWOW64 ----
+    // A plain move keeps the file's own permissions. Files that Windows protects for the PnP manager are renamed with the
+    // administrator's restore privilege instead; their ACL is never rewritten. The PnP lockdown entry is saved and removed with the file.
+    private const string Lockdown = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Setup\PnpLockdownFiles";
+    public async Task<CommandResult> QuarantineFileAsync(string path, string destination)
+    {
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        if (DeepCleanPlanner.SystemRelative(windows, path) is null || !File.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 || File.Exists(destination))
+            return Invalid("file");
+        var moved = MoveFile(path, destination);
+        if (!moved.Success) return moved;
+        var entry = FindLockdown(windows, path); var note = "";
+        if (entry is not null)
+        {
+            var file = Path.Combine(Path.GetDirectoryName(destination)!, "lockdown.reg");
+            var export = await Run("reg.exe", "export", @"HKLM\" + Lockdown + @"\" + entry, file, "/y", "/reg:64");
+            note = export.Success && File.Exists(file) && (await Run("reg.exe", "delete", @"HKLM\" + Lockdown + @"\" + entry, "/f", "/reg:64")).Success ? " lockdownSaved" : " lockdownKept";
+        }
+        return new(0, moved.Output + note);
+    }
+    public async Task<CommandResult> RestoreFileAsync(string backup, string origin)
+    {
+        var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        if (DeepCleanPlanner.SystemRelative(windows, origin) is null || File.Exists(origin) || !File.Exists(backup)) return Invalid("file backup");
+        var moved = MoveFile(backup, origin);
+        var lockdown = Path.Combine(Path.GetDirectoryName(backup)!, "lockdown.reg");
+        if (moved.Success && File.Exists(lockdown)) await Run("reg.exe", "import", lockdown, "/reg:64");
+        return moved;
+    }
+    // Lockdown entries are subkeys named after the file, for example "%SystemRoot%/System32/name.dll".
+    private static string? FindLockdown(string windows, string path)
+    {
+        try
+        {
+            using var root = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var key = root.OpenSubKey(Lockdown); if (key is null) return null;
+            var full = Path.GetFullPath(path);
+            return key.GetSubKeyNames().FirstOrDefault(n => string.Equals(Environment.ExpandEnvironmentVariables(n.Replace('/', '\\')), full, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { return null; }
+    }
+    private static CommandResult MoveFile(string source, string destination)
+    {
+        try { File.Move(source, destination); return new(0, "moved"); }
+        catch (UnauthorizedAccessException) { return PrivilegedRename(source, destination); }
+        catch (IOException e) { return new(1, "inUse " + e.Message); }
+    }
+    [DllImport("advapi32.dll", SetLastError = true)] private static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "LookupPrivilegeValueW")] private static extern bool LookupPrivilege(string? system, string name, out long luid);
+    [DllImport("advapi32.dll", SetLastError = true)] private static extern bool AdjustTokenPrivileges(IntPtr token, bool disableAll, ref TokenPrivilege state, int length, IntPtr previous, IntPtr returned);
+    [DllImport("kernel32.dll")] private static extern IntPtr GetCurrentProcess();
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "CreateFileW")]
+    private static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFile(string name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetFileInformationByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle file, int infoClass, IntPtr info, int size);
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] private struct TokenPrivilege { public int Count; public long Luid; public int Attributes; }
+    private static bool EnablePrivilege(string name)
+    {
+        if (!OpenProcessToken(GetCurrentProcess(), 0x20 | 0x8, out var token)) return false;
+        try { if (!LookupPrivilege(null, name, out var luid)) return false; var state = new TokenPrivilege { Count = 1, Luid = luid, Attributes = 2 }; return AdjustTokenPrivileges(token, false, ref state, 0, IntPtr.Zero, IntPtr.Zero) && Marshal.GetLastWin32Error() == 0; }
+        finally { CloseHandle(token); }
+    }
+    private static CommandResult PrivilegedRename(string source, string destination)
+    {
+        if (!EnablePrivilege("SeRestorePrivilege") || !EnablePrivilege("SeBackupPrivilege")) return new(5, "accessDenied");
+        // DELETE | SYNCHRONIZE with backup semantics; the link is renamed, never followed.
+        using var handle = CreateFile(source, 0x00010000 | 0x00100000, 7, IntPtr.Zero, 3, 0x02000000 | 0x00200000, IntPtr.Zero);
+        if (handle.IsInvalid) return new(Marshal.GetLastWin32Error(), "accessDenied");
+        var name = Encoding.Unicode.GetBytes(Path.GetFullPath(destination));
+        int size = 20 + name.Length + 2; var buffer = Marshal.AllocHGlobal(size);
+        try
+        {
+            for (int i = 0; i < size; i++) Marshal.WriteByte(buffer, i, 0);
+            Marshal.WriteInt32(buffer, 16, name.Length); Marshal.Copy(name, 0, buffer + 20, name.Length);
+            return SetFileInformationByHandle(handle, 3, buffer, size) ? new(0, "moved privileged") : new(Marshal.GetLastWin32Error(), "renameFailed");
+        }
+        finally { Marshal.FreeHGlobal(buffer); }
+    }
+
+    // ---- Khronos registrations ----
+    private sealed record ValueBackup(string Key, string Name, RegistryValueKind Kind, string Data);
+    private static bool Khronos(string key) => KhronosKeys.Contains(key, StringComparer.OrdinalIgnoreCase);
+    public async Task<CommandResult> ExportValueAsync(string key, string name, string file)
+    {
+        if (!Khronos(key) || name.Length == 0) return Invalid("registration");
+        using var registry = OpenPath(key); if (registry?.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames) is not { } value) return new(2, "Registration not found.");
+        var data = value switch { byte[] bytes => Convert.ToBase64String(bytes), string[] lines => JsonSerializer.Serialize(lines), _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "" };
+        await File.WriteAllTextAsync(file, JsonSerializer.Serialize(new ValueBackup(key, name, registry.GetValueKind(name), data)));
+        return new(0, "Registration exported.");
+    }
+    public Task<CommandResult> DeleteValueAsync(string key, string name)
+    {
+        if (!Khronos(key) || name.Length == 0) return Task.FromResult(Invalid("registration"));
+        using var registry = OpenPath(key, true); registry?.DeleteValue(name, false);
+        return Task.FromResult(new CommandResult(0, "Registration removed."));
+    }
+    public async Task<CommandResult> RestoreValueAsync(string file)
+    {
+        var value = JsonSerializer.Deserialize<ValueBackup>(await File.ReadAllTextAsync(file));
+        if (value is null || !Khronos(value.Key) || value.Name.Length == 0) return Invalid("registration backup");
+        using var root = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+        using var registry = root.CreateSubKey(value.Key[5..], true);
+        object data = value.Kind switch
+        {
+            RegistryValueKind.DWord => int.Parse(value.Data, System.Globalization.CultureInfo.InvariantCulture),
+            RegistryValueKind.QWord => long.Parse(value.Data, System.Globalization.CultureInfo.InvariantCulture),
+            RegistryValueKind.Binary => Convert.FromBase64String(value.Data),
+            RegistryValueKind.MultiString => JsonSerializer.Deserialize<string[]>(value.Data) ?? [],
+            _ => value.Data
+        };
+        registry.SetValue(value.Name, data, value.Kind);
+        return new(0, "Registration restored.");
     }
 
     // Official uninstallers only from machine-wide registrations whose program lives in an administrator-only folder.

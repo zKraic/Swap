@@ -2,6 +2,8 @@ using System.Text.Json;
 using Swap.Core;
 using Swap.Windows;
 
+// Child process of the read-only graphics API check, like Swap.exe.
+if (args.Length == 1 && args[0] == ApiProbe.Argument) return ApiProbe.WriteReport();
 var results = new List<object>(); int failed = 0;
 async Task Test(string name, Func<Task> action)
 {
@@ -325,6 +327,8 @@ await Test("A disconnected GPU that Windows keeps blocks deletion of its package
     Console.WriteLine("Connected GPU brands: "+string.Join(",",DeepCleanPlanner.PresentGpuVendors(inv)));
     foreach(var d in inv.Devices.Where(d=>d.HardwareIds.Any(id=>DeepCleanPlanner.InDomain(Vendor.Nvidia,id)||DeepCleanPlanner.InDomain(Vendor.Amd,id))))Console.WriteLine($"  gpu-domain device present={d.Present} {d.Class} {d.Inf} {d.Id}");
     foreach(var f in inv.Folders)Console.WriteLine($"  folder {f.Location} -> {f.Path} ({f.Bytes/1048576} MB)");
+    Console.WriteLine($"  system files with package evidence: {(inv.SystemFiles??[]).Count} (setup log {(inv.SystemFiles??[]).Count(f=>f.Source.Length>0)}); by author: "+string.Join(", ",(inv.SystemFiles??[]).GroupBy(f=>Vendors.FromCompany(f.Company)).Select(g=>g.Key+"="+g.Count())));
+    foreach(var r in inv.Registrations??[])Console.WriteLine($"  khronos {r.Key[(r.Key.IndexOf("Khronos")+8)..]} exists={r.Exists} company={r.Company} {Path.GetFileName(r.Name)}");
     Assert(inv.Devices.Count>20&&inv.Services.Count>50&&inv.Processes.Count>10);
 });
 if(args.Contains("--graphics-readonly")) await Test("Real graphics, PCIe link and display modes READ ONLY",async()=>{
@@ -334,8 +338,20 @@ if(args.Contains("--graphics-readonly")) await Test("Real graphics, PCIe link an
     Console.WriteLine($"Graphics: displays={d.Displays.Count}; probes={d.Probes.Count}; links={(d.Links??[]).Count}; eventsComplete={d.EventsComplete}. No mode changes.");
     Assert(d.DisplaysComplete&&d.EventsComplete);
 });
+if(args.Contains("--api-probe-readonly")) await Test("Real Direct3D 12, Vulkan and OpenCL in a child process READ ONLY",async()=>{
+    var watch=System.Diagnostics.Stopwatch.StartNew();var report=await ApiProbe.RunAsync(Environment.ProcessPath!);
+    foreach(var d in report.D3D12)Console.WriteLine($"  d3d12 {d.Name} {d.VendorId:X4}:{d.DeviceId:X4} FL {d.Version}");
+    Console.WriteLine($"  vulkan {report.Vulkan}");foreach(var d in report.VulkanDevices)Console.WriteLine($"  vulkan {d.Name} {d.VendorId:X4}:{d.DeviceId:X4} {d.Version}");
+    Console.WriteLine($"  opencl {report.OpenCl}");foreach(var d in report.OpenClPlatforms)Console.WriteLine($"  opencl {d.Name} {d.Version} gpus={d.DeviceId}");
+    Console.WriteLine($"API probe in {watch.Elapsed.TotalSeconds:0.0}s: completed={report.Completed}; errors={string.Join(";",report.Errors)}. Nothing rendered or changed.");
+    Assert(report.Completed && report.Vulkan.Length>0 && report.OpenCl.Length>0);
+});
 var lab=args.FirstOrDefault(a=>a.StartsWith("--deep-clean-lab="))?[17..];
 if(lab is not null) await LabTests.RunAsync(Test,(value,message)=>Assert(value,message),lab,root);
+var amdLab=args.FirstOrDefault(a=>a.StartsWith("--amd-cleanup-lab="))?[18..];
+if(amdLab is not null) await LabTests.AmdCleanupAsync(Test,(value,message)=>Assert(value,message),amdLab);
+var undoLab=args.FirstOrDefault(a=>a.StartsWith("--undo-lab="))?[11..];
+if(undoLab is not null) await LabTests.UndoAsync(Test,(value,message)=>Assert(value,message),undoLab);
 if(args.Contains("--graphics-native")) await Test("Real isolated guest display, Direct3D enumeration and recent events",async()=>{
     if(Environment.MachineName!="SWAPTESTVM" && Environment.UserName!="WDAGUtilityAccount")throw new InvalidOperationException("Native graphics testing belongs in the private guest.");
     var d=await GraphicsInspector.ReadAsync();Assert(d.DisplaysComplete&&d.Displays.Count>0&&d.Probes.Count>0&&d.EventsComplete);

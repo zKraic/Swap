@@ -26,6 +26,16 @@ public interface ICleanupPlatform
     Task<CommandResult> DeleteStartupAsync(string key);
     Task<CommandResult> RestoreStartupAsync(string file);
     Task<CommandResult> RemoveAppxAsync(string name);
+    // Windows folder whose System32/SysWOW64 may hold vendor files; the demo uses its sandbox.
+    string WindowsRoot => Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+    // Windows may already have removed a key together with the package or file it described.
+    bool KeyExists(string key) => true;
+    bool KeyEmpty(string key) => false;
+    Task<CommandResult> QuarantineFileAsync(string path, string destination);
+    Task<CommandResult> RestoreFileAsync(string backup, string origin);
+    Task<CommandResult> ExportValueAsync(string key, string name, string file);
+    Task<CommandResult> DeleteValueAsync(string key, string name);
+    Task<CommandResult> RestoreValueAsync(string file);
 }
 
 public sealed record CleanupResult(string Key, RemnantKind Kind, Vendor Vendor, string Target, string Label, string Status, string Backup, string Message, long Bytes);
@@ -78,15 +88,16 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
             foreach (var device in fresh.Items.Where(i => i.Kind == RemnantKind.Device && !selected.Contains(i.Key)))
                 if (inventory.Devices.Any(d => d.Id.Equals(device.Target, StringComparison.OrdinalIgnoreCase) && packageInfs.Contains(d.Inf))) chosen.Add(device with { Reason = "packageDependency" });
             var roots = chosen.Where(i => i.Kind is RemnantKind.Folder or RemnantKind.Package).Select(i => i.Kind == RemnantKind.Package ? i.Detail : i.Target).Where(r => r.Length > 0).ToArray();
+            var files = chosen.Where(i => i.Kind == RemnantKind.File).Select(i => i.Target).ToHashSet(StringComparer.OrdinalIgnoreCase);
             chosen.RemoveAll(i => i.Kind == RemnantKind.Process);
-            chosen.AddRange(fresh.Items.Where(i => i.Kind == RemnantKind.Process && roots.Any(r => DeepCleanPlanner.Within(i.Detail, r))));
+            chosen.AddRange(fresh.Items.Where(i => i.Kind == RemnantKind.Process && (roots.Any(r => DeepCleanPlanner.Within(i.Detail, r)) || files.Contains(i.Detail))));
             Save(session, "cleanup-plan.json", new { author = "KraicDev", simulated = platform.Simulated, plan = fresh, selected = chosen.Select(i => i.Key) });
             Save(secure, "plan.json", fresh);
             Log(await platform.RestorePointAsync());
             Save(session, "state.json", new { phase = "cleanup", completed = false, cleanup = true });
             stage?.Invoke("cleanup");
             var order = new[] { RemnantKind.Process, RemnantKind.Uninstaller, RemnantKind.Device, RemnantKind.Package, RemnantKind.Service, RemnantKind.Task,
-                RemnantKind.Startup, RemnantKind.Appx, RemnantKind.Folder, RemnantKind.Cache, RemnantKind.Registry, RemnantKind.App };
+                RemnantKind.Startup, RemnantKind.Appx, RemnantKind.Folder, RemnantKind.File, RemnantKind.Cache, RemnantKind.Registration, RemnantKind.Registry, RemnantKind.App };
             var failedDevices = new HashSet<string>(StringComparer.OrdinalIgnoreCase); int index = 0;
             // Stop services before ending processes: a killed service process could be restarted by its recovery policy.
             foreach (var service in chosen.Where(i => i.Kind == RemnantKind.Service)) await platform.StopServiceAsync(service.Target);
@@ -176,6 +187,34 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                             catch (IOException e) { seal = "unsealed " + e.Message; }
                             Record(item, "done", Rel(secure, target), seal, item.Bytes); break;
                         }
+                        case RemnantKind.File:
+                        {
+                            if (DeepCleanPlanner.SystemRelative(platform.WindowsRoot, item.Target) is null || DeepCleanPlanner.SharedRuntime(item.Target)) { Record(item, "skipped", "", "unsafePath"); break; }
+                            // Windows deletes the System32 links of a package it removes; only what it leaves needs the quarantine.
+                            if (!File.Exists(item.Target)) { Record(item, "done", "", "alreadyRemoved"); break; }
+                            if (!string.Equals(Path.GetPathRoot(Path.GetFullPath(item.Target)), Path.GetPathRoot(Path.GetFullPath(secure)), StringComparison.OrdinalIgnoreCase))
+                            { Record(item, "skipped", "", "otherVolume"); break; }
+                            var folder = Path.Combine(backup, "file"); Directory.CreateDirectory(folder);
+                            var target = Path.Combine(folder, Path.GetFileName(item.Target));
+                            Log("Moviendo a cuarentena " + item.Target);
+                            var r = await platform.QuarantineFileAsync(item.Target, target);
+                            if (!r.Success) { Record(item, "failed", "", r.Output); break; }
+                            await File.WriteAllTextAsync(Path.Combine(backup, "origin.txt"), item.Target, token);
+                            string seal = "";
+                            try { await BackupIntegrity.SealAsync(folder, token, false); }
+                            catch (IOException e) { seal = "unsealed " + e.Message; }
+                            Record(item, "done", Rel(secure, target), (r.Output + " " + seal).Trim(), item.Bytes); break;
+                        }
+                        case RemnantKind.Registration:
+                        {
+                            var split = item.Target.IndexOf('|');
+                            if (split < 0) { Record(item, "skipped", "", "invalidTarget"); break; }
+                            Directory.CreateDirectory(backup); var file = Path.Combine(backup, "value.json");
+                            var export = await platform.ExportValueAsync(item.Target[..split], item.Target[(split + 1)..], file);
+                            if (!export.Success || !File.Exists(file)) { Record(item, "skipped", "", "backupFailed " + export.Output); break; }
+                            var r = await platform.DeleteValueAsync(item.Target[..split], item.Target[(split + 1)..]);
+                            Record(item, r.Success ? "done" : "failed", Rel(secure, file), r.Output); break;
+                        }
                         case RemnantKind.Cache:
                         {
                             if (!SafeFolder(item.Target)) { Record(item, "skipped", "", "unsafePath"); break; }
@@ -185,10 +224,15 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                         case RemnantKind.Registry:
                         case RemnantKind.App:
                         {
+                            if (!platform.KeyExists(item.Target)) { Record(item, "done", "", "alreadyRemoved"); break; }
                             Directory.CreateDirectory(backup); var file = Path.Combine(backup, "registry.reg");
                             var export = await platform.ExportRegistryAsync(item.Target, file);
                             if (!export.Success || !File.Exists(file)) { Record(item, "skipped", "", "backupFailed " + export.Output); break; }
                             var r = await platform.DeleteRegistryAsync(item.Target);
+                            // An empty shared vendor root goes too; importing the child backup recreates it on undo.
+                            var parent = item.Target[..Math.Max(0, item.Target.LastIndexOf('\\'))];
+                            if (r.Success && VendorProfiles.EmptyParents.Contains(parent, StringComparer.OrdinalIgnoreCase) && platform.KeyEmpty(parent) && (await platform.DeleteRegistryAsync(parent)).Success)
+                                r = r with { Output = r.Output + " parentRemoved" };
                             Record(item, r.Success ? "done" : "failed", Rel(secure, file), r.Output); break;
                         }
                     }
@@ -205,7 +249,8 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                 if (results[i].Status != "done" || !remaining.Contains(results[i].Key)) continue;
                 // Windows deletes a service marked for deletion at the next restart.
                 if (results[i].Kind == RemnantKind.Service) { results[i] = results[i] with { Message = "pendingRestart " + results[i].Message }; restart = true; }
-                else if (results[i].Kind is RemnantKind.Device or RemnantKind.Package or RemnantKind.Task or RemnantKind.Startup or RemnantKind.Folder or RemnantKind.Registry or RemnantKind.App)
+                else if (results[i].Kind is RemnantKind.Device or RemnantKind.Package or RemnantKind.Task or RemnantKind.Startup or RemnantKind.Folder or RemnantKind.Registry or RemnantKind.App
+                    or RemnantKind.File or RemnantKind.Registration)
                     results[i] = results[i] with { Status = "failed", Message = "stillPresent " + results[i].Message };
             }
             Save(secure, "undo.json", results); Save(session, "cleanup-results.json", results);
@@ -239,6 +284,8 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
             // Backup locations are derived from the protected folder; never from paths a user could rewrite.
             var backup = item.Backup.Length == 0 ? "" : Path.GetFullPath(Path.Combine(secure, item.Backup));
             if (backup.Length > 0 && !DeepCleanPlanner.Within(backup, secure)) { results.Add(item with { Status = "failed", Message = "invalidBackup" }); continue; }
+            // Something Windows had already removed by itself left nothing to restore.
+            if (backup.Length == 0 && item.Kind is RemnantKind.Registry or RemnantKind.App or RemnantKind.File) { results.Add(item with { Status = "skipped", Message = "nothingToRestore" }); continue; }
             try
             {
                 CommandResult? r = null;
@@ -262,6 +309,16 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                         Directory.CreateDirectory(Path.GetDirectoryName(origin)!); Directory.Move(backup, origin);
                         r = new(0, "restored " + origin); break;
                     }
+                    case RemnantKind.File:
+                    {
+                        var folder = Path.GetDirectoryName(backup)!;
+                        var origin = (await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(folder)!, "origin.txt"), token)).Trim();
+                        if (DeepCleanPlanner.SystemRelative(platform.WindowsRoot, origin) is null || File.Exists(origin) || Directory.Exists(origin))
+                        { results.Add(item with { Status = "failed", Message = "destinationExists" }); continue; }
+                        if (File.Exists(Path.Combine(folder, BackupIntegrity.ManifestName))) await BackupIntegrity.VerifyAsync(folder, token, false);
+                        r = await platform.RestoreFileAsync(backup, origin); break;
+                    }
+                    case RemnantKind.Registration: r = await platform.RestoreValueAsync(backup); break;
                     default: results.Add(item with { Status = "skipped", Message = "notReversible" }); continue;
                 }
                 Log(item.Label + " · " + r.Output);
