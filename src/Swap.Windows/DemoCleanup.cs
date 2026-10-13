@@ -154,7 +154,10 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
         return new(0, "Simulated import");
     }
     public Task<CommandResult> DeleteRegistryAsync(string key) => Step("delete-registry:" + key, (key.Contains(@"\Uninstall\", StringComparison.OrdinalIgnoreCase) ? "app:" : "registry:") + key);
-    public Task<CommandResult> ExportTaskAsync(string path, string file) => Backup("export-task:" + path, file, "<Task>" + path + "</Task>");
+    // Test hook: a Windows step that finishes after its time limit.
+    public bool SlowTasks { get; set; }
+    public Task<CommandResult> ExportTaskAsync(string path, string file) => SlowTasks ? throw new TimeoutException("Simulated late Windows step")
+        : Backup("export-task:" + path, file, "<Task>" + path + "</Task>");
     public Task<CommandResult> DeleteTaskAsync(string path) => Step("delete-task:" + path, "task:" + path);
     public Task<CommandResult> RegisterTaskAsync(string path, string file) { Calls.Add("register-task:" + path); removed.Remove("task:" + path); return Task.FromResult(new CommandResult(0, "Simulated task")); }
     public Task<CommandResult> ExportStartupAsync(string key, string file) => Backup("export-startup:" + key, file, JsonSerializer.Serialize(new { key }));

@@ -33,7 +33,8 @@ public sealed partial class WindowsPlatform : IPlatform
         }
         return new(process.ExitCode, (await output + "\n" + await error).Trim());
     }
-    public static async Task<string> PowerShellAsync(string script, int timeout = 180)
+    // Generous by default: a slow or busy PC may need minutes, and a late but finished Windows step is still a result.
+    public static async Task<string> PowerShellAsync(string script, int timeout = 600)
     {
         var preamble = "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; [Console]::OutputEncoding=[Text.Encoding]::UTF8; try { ";
         var result = await RunAsync(SystemExe("WindowsPowerShell\\v1.0\\powershell.exe"),

@@ -237,7 +237,8 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                         }
                     }
                 }
-                catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or FormatException)
+                // A Windows step that ran past its time limit is reported on that item; the others still run.
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or FormatException or TimeoutException)
                 { Record(item, "failed", "", e.Message); }
             }
             stage?.Invoke("verify");
@@ -324,7 +325,7 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                 Log(item.Label + " · " + r.Output);
                 results.Add(item with { Status = r.Success ? "restored" : "failed", Message = r.Output });
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or JsonException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or JsonException or TimeoutException)
             { results.Add(item with { Status = "failed", Message = e.Message }); }
         }
         File.WriteAllText(Path.Combine(session, "undo-results.json"), JsonSerializer.Serialize(results, Indented));

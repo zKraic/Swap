@@ -287,6 +287,15 @@ static class DeepCleanTests
             Assert(!platform.Calls.Contains("delete:oem42.inf") && outcome.Results.Any(r => r.Key == "package:oem42.inf" && r.Status == "skipped" && r.Message == "dependentDeviceFailed"));
             Assert(outcome.Results.Any(r => r.Key == "package:oem44.inf" && r.Status == "failed") && platform.Calls.Contains("delete:oem43.inf") && outcome.Failed >= 2);
         });
+        await test("A Windows step that finishes late is reported on its item; the rest of the cleanup continues", async () =>
+        {
+            var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")) { SlowTasks = true };
+            var plan = DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]);
+            var outcome = await new DeepCleanEngine(platform).RunAsync(plan, All(plan), Session(sandbox), Secure(sandbox), _ => { });
+            Assert(outcome.Results.Single(r => r.Kind == RemnantKind.Task) is { Status: "failed" } task && task.Message.Contains("late"));
+            Assert(!platform.Calls.Any(c => c.StartsWith("delete-task")) && platform.Calls.Contains(@"delete-registry:HKLM\SOFTWARE\NVIDIA Corporation") && outcome.Done >= 15,
+                "cleanup stopped at the late step");
+        });
         await test("Failed backups prevent deletion of that item", async () =>
         {
             var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")) { FailExports = true };
