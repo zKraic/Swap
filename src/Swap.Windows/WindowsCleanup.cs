@@ -807,6 +807,56 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
     // Backups that can restore services or registry data are written only to an administrator-only folder.
     public static string SecureRoot() => SecureFolder("Cleanup", false);
 
+    // ---- Releasing cleanup backups ----
+    // Backups and quarantine stay until the person releases them; afterwards those cleanups can no longer be undone.
+    // Only session folders are touched, links are deleted as links, and files moved there with the restore privilege
+    // (for example a protected System32 module) are deleted with that privilege, never re-permissioned.
+    public static long BackupBytes(string root) => Sessions(root).Sum(Measure);
+    public static (int Sessions, long Bytes, int Locked) DiscardBackups(string root)
+    {
+        int sessions = 0, locked = 0; long bytes = 0;
+        foreach (var session in Sessions(root))
+        {
+            var size = Measure(session); var failed = DeleteTree(session);
+            if (failed == 0) { sessions++; bytes += size; } else locked += failed;
+        }
+        return (sessions, bytes, locked);
+    }
+    private static string[] Sessions(string root) => Directory.Exists(root)
+        ? Directory.GetDirectories(root).Where(d => DeepCleanEngine.ValidSession(Path.GetFileName(d)) && (File.GetAttributes(d) & FileAttributes.ReparsePoint) == 0).ToArray() : [];
+    private static int DeleteTree(string folder)
+    {
+        int failed = 0;
+        foreach (var entry in Directory.EnumerateFileSystemEntries(folder).ToArray())
+        {
+            var attributes = File.GetAttributes(entry);
+            if ((attributes & FileAttributes.Directory) != 0 && (attributes & FileAttributes.ReparsePoint) == 0) failed += DeleteTree(entry);
+            else if (!DeleteEntry(entry, attributes)) failed++;
+        }
+        return failed + (DeleteEntry(folder, File.GetAttributes(folder)) ? 0 : 1);
+    }
+    private static bool DeleteEntry(string path, FileAttributes attributes)
+    {
+        try
+        {
+            if ((attributes & FileAttributes.ReadOnly) != 0) File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
+            if ((attributes & FileAttributes.Directory) != 0) Directory.Delete(path, false); else File.Delete(path);
+            return true;
+        }
+        catch (UnauthorizedAccessException) { return PrivilegedDelete(path); }
+        catch (IOException) { return false; }
+    }
+    private static bool PrivilegedDelete(string path)
+    {
+        if (!Privileged()) return false;
+        // DELETE with backup semantics; a link is opened as itself, never followed.
+        using var handle = CreateFile(path, 0x00010000, 7, IntPtr.Zero, 3, 0x02000000 | 0x00200000, IntPtr.Zero);
+        if (handle.IsInvalid) return false;
+        var flag = Marshal.AllocHGlobal(4);
+        try { Marshal.WriteInt32(flag, 1); return SetFileInformationByHandle(handle, 4, flag, 4); }
+        finally { Marshal.FreeHGlobal(flag); }
+    }
+
     // Folders under %ProgramData%\Swap that only administrators and SYSTEM can change; users may get read access.
     internal static string SecureFolder(string name, bool usersRead)
     {

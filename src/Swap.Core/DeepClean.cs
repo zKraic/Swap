@@ -57,7 +57,7 @@ public static class VendorProfiles
          "nvvad_WaveExtensible", "nvvhci", "NVHDA", "NvStreamKms", "nvpcf", "NVWMI", "FvSvc", "NvBroadcast.ContainerLocalSystem"],
         [new(Vendor.Nvidia, @"%ProgramFiles%\NVIDIA Corporation", FolderRole.Folder, Protect: ["PhysX"]),
          new(Vendor.Nvidia, @"%ProgramFiles(x86)%\NVIDIA Corporation", FolderRole.Folder, Protect: ["PhysX"]),
-         new(Vendor.Nvidia, @"%ProgramData%\NVIDIA Corporation", FolderRole.Folder),
+         new(Vendor.Nvidia, @"%ProgramData%\NVIDIA Corporation", FolderRole.Folder, Protect: ["GfnRuntimeSdk"]),
          new(Vendor.Nvidia, @"%ProgramData%\NVIDIA", FolderRole.Folder),
          new(Vendor.Nvidia, @"%LocalAppData%\NVIDIA Corporation", FolderRole.Folder, true),
          new(Vendor.Nvidia, @"%LocalAppData%\NVIDIA", FolderRole.Cache, true),
@@ -270,7 +270,7 @@ public static partial class DeepCleanPlanner
                 {
                     foreach (var child in entry.Children)
                     {
-                        if (protectedChildren.Contains(child)) { kept.Add(new(kind + ":" + child.Path, kind, vendor, child.Path, child.Path, child.Name.Equals("PhysX", StringComparison.OrdinalIgnoreCase) ? "physxKept" : "folderProtected", false, child.Bytes)); continue; }
+                        if (protectedChildren.Contains(child)) { kept.Add(new(kind + ":" + child.Path, kind, vendor, child.Path, child.Path, child.Name.Equals("PhysX", StringComparison.OrdinalIgnoreCase) ? "physxKept" : child.Name.Equals("GfnRuntimeSdk", StringComparison.OrdinalIgnoreCase) ? "sharedSdkKept" : "folderProtected", false, child.Bytes)); continue; }
                         if (spec.Include is not null && !spec.Include.Any(i => child.Name.Contains(i, StringComparison.OrdinalIgnoreCase))) continue;
                         if (spec.Exclude?.Any(x => child.Name.Contains(x, StringComparison.OrdinalIgnoreCase)) == true) continue;
                         items.Add(new(kind + ":" + child.Path, kind, vendor, child.Path, child.Path, spec.Role == FolderRole.Cache ? "cacheRebuilt" : "folderVendor", cacheSelect, child.Bytes));

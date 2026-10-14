@@ -75,7 +75,7 @@
         <ListBox.ItemTemplate><DataTemplate><DockPanel><CheckBox IsChecked="{Binding Selected,Mode=TwoWay}" IsEnabled="{Binding Editable}" Margin="0,1,10,0" VerticalAlignment="Top" AutomationProperties.Name="{Binding Title}" Click="CleanupItemChanged"/><TextBlock DockPanel.Dock="Right" Text="{Binding Size}" Style="{StaticResource Caption}" FontSize="11" Margin="12,0,0,0"/><StackPanel><TextBlock Text="{Binding Title}" FontSize="12"/><TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}" FontSize="11" LineHeight="17"/></StackPanel></DockPanel></DataTemplate></ListBox.ItemTemplate>
        </ListBox>
        <TextBlock x:Name="CleanupSummary" FontSize="12" Margin="0,0,0,12"/>
-       <WrapPanel><Button x:Name="CleanupRunButton" Content="{DynamicResource cleanupRun}" Style="{StaticResource Primary}" Click="RunCleanup" IsEnabled="False" Margin="0,0,10,10"/><Button Content="{DynamicResource cleanupUndo}" Click="UndoCleanup" Margin="0,0,0,10"/></WrapPanel>
+       <WrapPanel><Button x:Name="CleanupRunButton" Content="{DynamicResource cleanupRun}" Style="{StaticResource Primary}" Click="RunCleanup" IsEnabled="False" Margin="0,0,10,10"/><Button Content="{DynamicResource cleanupUndo}" Click="UndoCleanup" Margin="0,0,10,10"/><Button x:Name="FreeBackupsButton" Style="{StaticResource Quiet}" Click="FreeBackups" Margin="0,0,0,10" Visibility="Collapsed"/></WrapPanel>
       </StackPanel></Border>
       <Expander x:Name="CleanupKeptPanel" Header="{DynamicResource cleanupKept}" Margin="0,12,0,0" Visibility="Collapsed"><TextBlock x:Name="CleanupKeptText" FontSize="12" LineHeight="20" Margin="12,8"/></Expander>
       <Border Style="{StaticResource Panel}" Margin="0,16,0,0"><StackPanel>

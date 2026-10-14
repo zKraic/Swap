@@ -69,6 +69,8 @@ public partial class MainWindow : Window
         {
             busy = false; LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = DeepCleanBox.IsEnabled = true;
             DemoButton.IsEnabled = true; Progress.Visibility = ProgressText.Visibility = CancelButton.Visibility = Visibility.Collapsed; UpdateButtons();
+            // A cleanup analysis that ran during the operation painted its buttons while busy.
+            UpdateCleanupSummary(); FreeSpaceButton.IsEnabled = !readOnly && (versionsPlan?.Items.Count ?? 0) > 0;
         }
     }
     private void Log(string text)

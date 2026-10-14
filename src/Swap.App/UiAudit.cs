@@ -84,7 +84,10 @@ public partial class MainWindow
             results.Add(new {scenario="health-disclosures-demo",passed=true});
             // Deep cleanup on simulated leftovers of a removed NVIDIA card: preview, run, verify and undo.
             platform = new DemoPlatform(); cleanupPlatform = null; await AnalyzeAsync();
-            CleanupNav.IsChecked = true; await AnalyzeCleanupAsync(); UpdateLayout();
+            CleanupNav.IsChecked = true; await AnalyzeCleanupAsync();
+            // Opening the page also starts its own analysis; the buttons must be usable once it ends.
+            while (busy) await Task.Delay(50);
+            UpdateLayout();
             if (cleanupRows.Count < 15 || !cleanupRows.Any(r => r.Item.Kind == RemnantKind.Device) || cleanupPlan?.Kept.Any(k => k.Reason == "physxKept") != true || !CleanupRunButton.IsEnabled)
                 throw new InvalidOperationException("Deep cleanup preview failed: " + cleanupRows.Count);
             var cleanupIssues2 = new List<string>(); InspectLayout(CleanupPage, cleanupIssues2);
@@ -99,6 +102,14 @@ public partial class MainWindow
             var undone = await new DeepCleanEngine(Cleanup).UndoAsync(cleaned.Session, CleanupBackupRoot(), Log);
             if (undone.Results.Count(r => r.Status == "restored") < 8 || undone.Results.Any(r => r.Status == "failed")) throw new InvalidOperationException("Deep cleanup undo failed.");
             results.Add(new { scenario = "deep-cleanup-run-and-undo-demo", passed = true, cleaned.Done, restored = undone.Results.Count(r => r.Status == "restored") });
+            // Releasing the backups of earlier cleanups: offered with its size, everything goes, and undo no longer looks for them.
+            await PaintBackupsAsync();
+            if (FreeBackupsButton.Visibility != Visibility.Visible || backupBytes <= 0) throw new InvalidOperationException("Backup release not offered.");
+            var released = await DiscardBackupsCoreAsync();
+            if (released.Locked != 0 || released.Sessions < 1 || FreeBackupsButton.Visibility == Visibility.Visible ||
+                Directory.EnumerateDirectories(CleanupBackupRoot()).Any(d => DeepCleanEngine.ValidSession(Path.GetFileName(d))) ||
+                File.ReadAllText(Path.Combine(cleaned.Session, "state.json")).Contains("\"complete\"")) throw new InvalidOperationException($"Backup release failed: {released}");
+            results.Add(new { scenario = "free-cleanup-backups-demo", passed = true, released.Sessions, released.Bytes });
             DiagnosticsNav.IsChecked = true; await InspectGraphicsAsync(); UpdateLayout();
             if (RefreshPanel.Children.Count != 1) throw new InvalidOperationException("Refresh-rate offer missing.");
             ApplyRefresh(RefreshPanel.Children[0], new RoutedEventArgs()); await Task.Delay(100);

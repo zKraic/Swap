@@ -49,7 +49,38 @@ public partial class MainWindow
         LabelCleanupBrands(present);
         PlanCleanup();
         versionsPlan = DeepCleanPlanner.Refresh(cleanupInventory, new(cleanupInventory.MachineId, [], [], [], [], true));
-        PaintCleanup(); Status.Text = T("ready");
+        PaintCleanup(); await PaintBackupsAsync(); Status.Text = T("ready");
+    }
+    // Backups and quarantine of earlier cleanups, measured in the administrator-only folder; releasing them is the person's choice.
+    private long backupBytes;
+    private async Task PaintBackupsAsync()
+    {
+        if (readOnly) return;
+        var root = CleanupBackupRoot();
+        backupBytes = await Task.Run(() => WindowsCleanupPlatform.BackupBytes(root));
+        FreeBackupsButton.Content = string.Format(T("cleanupDiscard"), Size(backupBytes));
+        FreeBackupsButton.Visibility = backupBytes > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+    private async void FreeBackups(object sender, RoutedEventArgs e)
+    {
+        if (busy || backupBytes <= 0) return;
+        if (MessageBox.Show(this, string.Format(T("cleanupDiscardConfirm"), Size(backupBytes)), "Swap", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        await Guard(() => Operation(async token => { await DiscardBackupsCoreAsync(); }));
+    }
+    private async Task<(int Sessions, long Bytes, int Locked)> DiscardBackupsCoreAsync()
+    {
+        var root = CleanupBackupRoot();
+        var released = await Task.Run(() => WindowsCleanupPlatform.DiscardBackups(root));
+        // Their sessions stay in the history, marked so that undo does not look for them.
+        var sessions = Path.Combine(dataRoot, "Sessions");
+        if (Directory.Exists(sessions))
+            foreach (var session in Directory.GetDirectories(sessions).Where(d => DeepCleanEngine.ValidSession(Path.GetFileName(d)) && !Directory.Exists(Path.Combine(root, Path.GetFileName(d)))))
+                try { var state = Path.Combine(session, "state.json"); if (File.Exists(state) && File.ReadAllText(state).Contains("\"complete\"")) File.WriteAllText(state, "{\"phase\":\"discarded\",\"completed\":true,\"cleanup\":true}"); }
+                catch (IOException ex) { Log(ex.Message); }
+        Log($"{released.Sessions} · {Size(released.Bytes)} · {released.Locked}");
+        Status.Text = released.Locked == 0 ? string.Format(T("cleanupDiscarded"), Size(released.Bytes)) : T("failed");
+        await PaintBackupsAsync();
+        return released;
     }
     private void PlanCleanup()
     {

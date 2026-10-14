@@ -123,6 +123,16 @@ static class DeepCleanTests
             Assert(plan.Kept.Any(k => k.Kind == RemnantKind.App && k.Label.Contains("PhysX")));
             Assert(plan.Items.Any(i => i.Kind == RemnantKind.Folder && i.Target.EndsWith("NVIDIA App")) && !plan.Items.Any(i => i.Target.EndsWith("PhysX")));
         });
+        await test("The GeForce NOW SDK folder that game launchers use stays; the rest of NVIDIA's ProgramData goes", () =>
+        {
+            var root = @"C:\ProgramData\NVIDIA Corporation";
+            var inventory = Inventory("GenuineIntel", "Intel(R) Core(TM) i5-9400F CPU @ 2.90GHz") with { Folders = [new(@"%ProgramData%\NVIDIA Corporation", root, 3000,
+                [new("NVIDIA App", root + @"\NVIDIA App", 2000), new("GfnRuntimeSdk", root + @"\GfnRuntimeSdk", 1), new("Drs", root + @"\Drs", 999)])] };
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            Assert(plan.Items.Any(i => i.Target == root + @"\NVIDIA App") && plan.Items.Any(i => i.Target == root + @"\Drs") && !plan.Items.Any(i => i.Target == root || i.Target.EndsWith("GfnRuntimeSdk")));
+            Assert(plan.Kept.Any(k => k.Target.EndsWith("GfnRuntimeSdk") && k.Reason == "sharedSdkKept"));
+            return Done();
+        });
         await test("Vendor applications orphaned by the quarantine are removed from Programs", async () =>
         {
             var plan = DeepCleanPlanner.Create(await Demo(), [Vendor.Nvidia]);
