@@ -25,7 +25,8 @@ public static class ApiProbe
 
     public static async Task<ApiReport> RunAsync(string executable, int timeoutSeconds = 45, CancellationToken token = default)
     {
-        var info = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        var info = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+            StandardOutputEncoding = new System.Text.UTF8Encoding(false) };
         info.ArgumentList.Add(Argument);
         try
         {

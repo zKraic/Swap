@@ -121,7 +121,8 @@ public partial class MainWindow : Window
     }
     private void UpdateButtons()
     {
-        bool enabled = !busy && !readOnly && !rebootRequested && snapshot is { Admin: true, Complete: true, PendingReboot: false, Remote: false } && TargetAdapter is not null && snapshot.FreeBytes >= 4L * 1024 * 1024 * 1024;
+        // While a card change is prepared or running, its banner is the only way forward: no install for the old card by mistake.
+        bool enabled = !busy && !readOnly && !rebootRequested && swapIntent is null && snapshot is { Admin: true, Complete: true, PendingReboot: false, Remote: false } && TargetAdapter is not null && snapshot.FreeBytes >= 4L * 1024 * 1024 * 1024;
         RunButton.IsEnabled = DownloadButton.IsEnabled = enabled;
         PrepareButton.IsEnabled = !busy && !readOnly && snapshot is { Admin: true, Complete: true } && TargetAdapter is not null && swapIntent is null;
         SwapPrimaryButton.IsEnabled = SwapSecondaryButton.IsEnabled = SwapCancelButton.IsEnabled = !busy;

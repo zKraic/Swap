@@ -134,7 +134,7 @@ public partial class MainWindow
             if (File.Exists(IntentFile)) File.Delete(IntentFile);
             platform = new DemoPlatform { Target = Vendor.Nvidia }; cleanupPlatform = null; await AnalyzeAsync(); HomeNav.IsChecked = true;
             await Operation(PrepareSwapCoreAsync);
-            if (swapIntent is not { Phase: "prepared", FromVendor: Vendor.Nvidia } || SwapBanner.Visibility != Visibility.Visible || PrepareButton.IsEnabled || !File.Exists(IntentFile))
+            if (swapIntent is not { Phase: "prepared", FromVendor: Vendor.Nvidia } || SwapBanner.Visibility != Visibility.Visible || PrepareButton.IsEnabled || RunButton.IsEnabled || DownloadButton.IsEnabled || !File.Exists(IntentFile))
                 throw new InvalidOperationException("Card change preparation failed.");
             UpdateLayout(); Capture(Path.Combine(output, "swap-prepared.png"));
             // The first install fails as if Windows were busy after sign-in; the card change retries on its own.
@@ -144,7 +144,7 @@ public partial class MainWindow
             UpdateLayout(); Capture(Path.Combine(output, "swap-detected.png"));
             await StartSwapInstallAsync();
             if (swapState != "done" || swapIntent is not null || File.Exists(IntentFile) || lastValidationPath is null || !File.Exists(lastValidationPath) || lastValidation is not { DriverVerified: true, CleanupRemoved: > 0, LeftoversAfter: 0 } ||
-                swapAttempts != 2 || ((DemoPlatform)platform).FailedInstalls != 0)
+                swapAttempts != 2 || ((DemoPlatform)platform).FailedInstalls != 0 || !RunButton.IsEnabled)
                 throw new InvalidOperationException($"Card change did not finish: {swapState} {lastValidation}");
             var markdown = await File.ReadAllTextAsync(lastValidationPath);
             if (!markdown.Contains("### Swap validation report") || !markdown.Contains("Simulated demo") || !markdown.Contains("Direct3D 12 available") ||

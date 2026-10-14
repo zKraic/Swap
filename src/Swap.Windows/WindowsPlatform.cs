@@ -19,6 +19,8 @@ public sealed partial class WindowsPlatform : IPlatform
             // Resolve only the Windows module locations, independently of the launching shell.
             info.Environment["PSModulePath"] = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\Modules") + ";" +
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"WindowsPowerShell\Modules");
+            // The scripts write UTF-8; reading it with the system code page turned "·" and accented device names into "Â·".
+            info.StandardOutputEncoding = info.StandardErrorEncoding = new UTF8Encoding(false);
         }
         foreach (var arg in args) info.ArgumentList.Add(arg);
         using var process = Process.Start(info) ?? throw new IOException("No se pudo iniciar " + exe);
