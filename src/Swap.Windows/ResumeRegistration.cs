@@ -43,7 +43,8 @@ public static class ResumeRegistration
         var cached=Path.Combine(DirectoryPath,"Swap.exe");
         using var source=new FileStream(executable,FileMode.Open,FileAccess.Read,FileShare.Read);
         var hash=Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(source));source.Position=0;
-        if(!executable.Equals(cached,StringComparison.OrdinalIgnoreCase))
+        // The same copy may be running (opened at sign-in); it is already the right one.
+        if(!executable.Equals(cached,StringComparison.OrdinalIgnoreCase) && !(File.Exists(cached) && await WindowsPlatform.HashFileAsync(cached)==hash))
         {
             using(var output=new FileStream(cached+".tmp",FileMode.Create,FileAccess.Write,FileShare.None))await source.CopyToAsync(output);
             File.Move(cached+".tmp",cached,true);

@@ -304,7 +304,9 @@ public static partial class DeepCleanPlanner
                     if (app.Name.Contains("PhysX", StringComparison.OrdinalIgnoreCase)) kept.Add(new("app:" + app.Key, RemnantKind.App, vendor, app.Key, app.Name, "physxKept", false));
                     continue;
                 }
-                if (!profile.AppNames.Any(n => app.Name.Contains(n, StringComparison.OrdinalIgnoreCase))) continue;
+                // Names are translated by Windows' language ("NVIDIA Controlador de gráficos"); an entry whose uninstaller
+                // lives only in folders this cleanup removes is dead afterwards whatever its name.
+                if (!profile.AppNames.Any(n => app.Name.Contains(n, StringComparison.OrdinalIgnoreCase)) && !(app.Files.Count > 0 && app.Files.All(Removed))) continue;
                 // Windows Installer products are removed through msiexec, never by deleting their registration.
                 if (!app.Msi && app.Files.Count > 0 && (!app.Exists || app.Files.All(Removed)))
                     items.Add(new("app:" + app.Key, RemnantKind.App, vendor, app.Key, app.Name, "appOrphan", select, 0, app.Version));

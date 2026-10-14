@@ -81,7 +81,12 @@ public partial class MainWindow
             return;
         }
         var (state, newcomer) = SwapDetection.State(intent, snapshot);
-        if (!Demo && state is "waiting" or "noGpu" or "ambiguous") await SwapRegistration.ArmAsync(Environment.ProcessPath!);
+        // Keep the next start armed; a failure here must not hide what Swap found.
+        if (!Demo && state is "waiting" or "noGpu" or "ambiguous")
+        {
+            try { await SwapRegistration.ArmAsync(Environment.ProcessPath!); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log(e.Message); }
+        }
         swapNewcomer = newcomer;
         ShowSwap(state, newcomer);
         if (state == "swapped" && newcomer is not null) StartSwapCountdown(newcomer);

@@ -51,6 +51,8 @@ static class DeepCleanTests
             Assert(CommandFiles.Parse(@"""C:\Program Files\AMD\CNext\CNext\RadeonSoftware.exe"" -minimized").Single() == @"C:\Program Files\AMD\CNext\CNext\RadeonSoftware.exe");
             Assert(CommandFiles.Parse(@"\SystemRoot\System32\drivers\nvlddmkm.sys").Single().EndsWith(@"System32\drivers\nvlddmkm.sys", StringComparison.OrdinalIgnoreCase));
             Assert(CommandFiles.Parse(@"MsiExec.exe /X{F5C4D1F8-5B2A-4D17-9E7E-2A0C3A2F8E3B}").Count == 0 && CommandFiles.Parse("").Count == 0);
+            // Hidden sub-components without an uninstall command are judged by their icon module.
+            Assert(CommandFiles.Parse(@"C:\Program Files\NVIDIA Corporation\Installer2\InstallerCore\NVI2.dll,0").Single() == @"C:\Program Files\NVIDIA Corporation\Installer2\InstallerCore\NVI2.dll");
             return Done();
         });
         await test("Integrated-graphics heuristic follows processor model suffixes", () =>
@@ -126,6 +128,22 @@ static class DeepCleanTests
             var plan = DeepCleanPlanner.Create(await Demo(), [Vendor.Nvidia]);
             Assert(plan.Items.Count(i => i.Kind == RemnantKind.App && i.Reason == "appOrphan") == 2);
             Assert(plan.Items.Any(i => i.Kind == RemnantKind.Task && i.Reason == "commandOrphan"));
+        });
+        await test("Translated Programs entries follow their uninstaller's folder, not their name; exclusions and unrelated tools stay", async () =>
+        {
+            var inventory = await Demo();
+            var first = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            var orphan = inventory.Apps.First(a => first.Items.Any(i => i.Key == "app:" + a.Key && i.Reason == "appOrphan"));
+            inventory = inventory with { Apps = [.. inventory.Apps,
+                orphan with { Key = orphan.Key + "-es", Name = "NVIDIA Controlador de gráficos 582.78" },
+                orphan with { Key = orphan.Key + "-de", Name = "NVIDIA Grafiktreiber 582.78" },
+                orphan with { Key = orphan.Key + "-cuda", Name = "NVIDIA CUDA Runtime 12.4" },
+                orphan with { Key = orphan.Key + "-physx", Name = "NVIDIA Software del sistema PhysX 9.23" },
+                orphan with { Key = orphan.Key + "-tool", Name = "NVIDIA Herramienta sin relación", Files = [@"C:\Program Files\Other Vendor\tool.exe"], Exists = true }] };
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            foreach (var suffix in new[] { "-es", "-de" }) Assert(plan.Items.Any(i => i.Key == "app:" + orphan.Key + suffix && i.Reason == "appOrphan"), "translated entry " + suffix);
+            Assert(!plan.Items.Any(i => i.Key.EndsWith("-cuda") || i.Key.EndsWith("-physx") || i.Key.EndsWith("-tool")), "excluded or unrelated entry planned");
+            Assert(plan.Kept.Any(k => k.Key.EndsWith("-physx") && k.Reason == "physxKept"));
         });
         await test("Services: active and unrelated services stay; orphaned vendor services go", () =>
         {

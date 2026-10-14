@@ -382,7 +382,9 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
                 using var app = key.OpenSubKey(name); if (app?.GetValue("DisplayName") is not string display) continue;
                 var command = app.GetValue("UninstallString") as string ?? "";
                 bool msi = app.GetValue("WindowsInstaller") is int installer && installer == 1 && Guid.TryParse(name, out _);
+                // Hidden vendor sub-components often have no uninstall command; their icon module is the only file evidence.
                 var files = CommandFiles.Parse(command);
+                if (files.Count == 0 && command.Length == 0 && app.GetValue("DisplayIcon") is string icon) files = CommandFiles.Parse(icon);
                 result.Add(new(path + "\\" + name, display, app.GetValue("Publisher") as string ?? "", app.GetValue("DisplayVersion") as string ?? "", files,
                     files.Count > 0 && files.All(File.Exists), path.StartsWith("HKLM", StringComparison.Ordinal), msi, command));
             }

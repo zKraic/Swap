@@ -102,7 +102,8 @@ public static class LogonTask
         await using (var source = new FileStream(executable, FileMode.Open, FileAccess.Read, FileShare.Read))
         {
             hash = await SHA256.HashDataAsync(source); source.Position = 0;
-            if (!executable.Equals(cached, StringComparison.OrdinalIgnoreCase))
+            // The same copy may be running (opened by the task); it is already the right one.
+            if (!executable.Equals(cached, StringComparison.OrdinalIgnoreCase) && !(File.Exists(cached) && await WindowsPlatform.HashFileAsync(cached) == Convert.ToHexString(hash)))
             {
                 await using (var output = new FileStream(cached + ".tmp", FileMode.Create, FileAccess.Write, FileShare.None)) await source.CopyToAsync(output);
                 File.Move(cached + ".tmp", cached, true);
