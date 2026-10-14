@@ -1,5 +1,20 @@
 # Changelog · KraicDev
 
+## 1.0.0
+
+The first release validated on a real card change. On a desktop with Windows 11, a GeForce GTX 1060 was replaced with a Radeon RX 7600 using **I'm changing my card**; everything that change showed is fixed here, and the fixes were checked again on the same PC.
+
+- **Fully automatic after sign-in.** A sign-in task opens Swap elevated without a UAC prompt; it runs a copy in `%ProgramData%\Swap\Continuation` that only administrators can change, and Swap deletes the task when it finishes or the change is cancelled. HKCU RunOnce stays as a fallback and steps aside when the task already opened Swap. The same applies to a driver change that needs a restart.
+- **Waits instead of giving up.** Right after sign-in the network may still be connecting, or Windows may be installing the same driver on its own (it did on the real PC). An install that is not verified yet is retried for up to eight minutes from a fresh inventory, and a driver Windows installed is verified and kept.
+- **Full shutdown before unplugging.** The card-change shutdown is a full shutdown and says so; idle TeamViewer no longer blocks driver changes (only its incoming-session process does), and pending deletions of leftover installer files no longer count as a pending restart.
+- **Cleanup reaches what the real change left.** PnP lockdown entries that Windows 11 reserves for TrustedInstaller (1,889 on the real PC) are saved as a registry hive and removed with the restore privilege, never re-permissioned, and restored exactly by undo. Programs entries translated by Windows ("NVIDIA Controlador de gráficos") and hidden sub-components are recognized by their uninstaller's folder. Known vendor installer modules in System32/SysWOW64 (NVIDIA App capture, Virtual Audio) go when the brand is their author. A vendor program that restarts and keeps a folder open is stopped and the move retried; what a third-party program holds stays and the rest moves. After a card change, a second pass in the same session (same undo) takes what the first one orphaned. The GeForce NOW SDK folder game launchers use is kept, like PhysX.
+- **New: progress with percentages.** "Step 3 of 5" during a driver change and "Cleaning up · 37 of 192" item by item, instead of an indeterminate bar.
+- **New: Free cleanup backups.** Releases the backups and quarantine of earlier cleanups after a clear confirmation, once everything works.
+- **New: after the change.** The finished banner offers the display's highest refresh rate in one click, or the manufacturer's optional control panel when Windows Update installed the driver without it. While a change is prepared, Install and Download only are disabled so nothing is installed for the old card by mistake.
+- Fixes: PowerShell output read as UTF-8 and console tools in the OEM code page ("Windows 11 Pro · 10.0.26300", accented device names, "La operación"); the taskbar icon (small icon sizes are now classic bitmaps); "Clean selected" stayed disabled when the analysis ran inside an operation; the quarantine seal no longer ends up in a restored folder.
+- No longer a preview: version 1.0.0 without the "experimental" label.
+- Tests: 199 logic cases, a 158-case WPF audit (retry after a failed install, progress, releasing backups), real labs for the sign-in task and for a protected PnP entry round trip on Windows 11, and a read-only cleanup preview of the real PC.
+
 ## 0.6.0 preview
 
 The card change from start to finish, what games actually load, and the files a driver leaves outside its package. Measured against Display Driver Uninstaller on identical copies of a Windows guest.

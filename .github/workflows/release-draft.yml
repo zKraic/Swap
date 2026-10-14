@@ -1,19 +1,21 @@
-name: prepare-release-draft
+name: verify-release-candidate
+# Checks a tested build and prepares its provenance. It never creates a release: the maintainer publishes
+# from their own account after the exact executable passed isolated Windows validation.
 on:
   workflow_dispatch:
     inputs:
       build_run:
-        description: Successful build-and-test run to release
+        description: Successful build-and-test run to verify
         required: true
         type: string
 permissions:
-  contents: write
+  contents: read
   actions: read
 concurrency:
-  group: release-draft
+  group: release-candidate
   cancel-in-progress: false
 jobs:
-  draft:
+  verify:
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -23,7 +25,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Validate provenance and download tested CI artifact
+      - name: Validate provenance of the tested CI artifact
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
@@ -34,38 +36,18 @@ jobs:
           if($LASTEXITCODE -ne 0){throw 'Artifact download failed'}
           $exe=Get-Item release-input/dist/Swap.exe
           $report=Get-Content release-input/artifacts/test-results.json -Raw | ConvertFrom-Json
-          if($report.failed -ne 0 -or $report.passed -ne 190){throw 'Unexpected test report'}
+          if($report.failed -ne 0 -or $report.passed -lt 199){throw 'Unexpected test report'}
           $hash=(Get-FileHash $exe.FullName -Algorithm SHA256).Hash
           $expected=(Get-Content release-input/dist/Swap.exe.sha256 -Raw).Trim().Split(' ')[0]
           if($hash -ne $expected){throw 'Artifact checksum mismatch'}
           $version=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe.FullName).ProductVersion.Split('+')[0]
-          if($version -ne '0.6.0'){throw 'Unexpected version'}
-          $vmValidation='pending; draft must not be published until the exact EXE passes isolated Windows checks'
-          $validation=Get-Content docs/validation/v060-result.json -Raw | ConvertFrom-Json
-          if($validation.appSha256 -eq $hash -and $validation.isolatedWindows.completed -eq $true){
-            if($validation.sourceCommit -ne $run.head_sha -or $validation.isolatedWindows.corePassed -ne 196 -or $validation.isolatedWindows.uiPassed -ne 157 -or $validation.isolatedWindows.checksPassed -ne 12 -or $validation.isolatedWindows.captures -ne 47){throw 'Exact validation provenance mismatch'}
-            $vmValidation=$validation.isolatedWindows
-          }
-          Copy-Item docs/validation/v060-result.json release-input/validation.json
-          @{author='KraicDev';version=$version;appSha256=$hash;bytes=$exe.Length;sourceCommit=$run.head_sha;buildRun=$run.html_url;ciCorePassed=$report.passed;unsigned=$true;vmValidation=$vmValidation;validationRecord='https://github.com/zKraic/Swap/blob/main/docs/validation/v060-result.json'} | ConvertTo-Json -Depth 8 | Set-Content release-input/build-provenance.json -Encoding utf8
-          $run.head_sha | Set-Content release-input/source-commit.txt -Encoding ascii
-      - name: Create or update unpublished preview draft
-        shell: pwsh
-        run: |
-          $source=(Get-Content release-input/source-commit.txt -Raw).Trim()
-          $releases=gh api "repos/$env:GH_REPO/releases" | ConvertFrom-Json
-          if($LASTEXITCODE -ne 0){throw 'Release lookup failed'}
-          $existing=@($releases | Where-Object tag_name -eq 'v0.6.0-preview')
-          if($existing.Count -gt 1){throw 'Ambiguous release'}
-          if($existing.Count -eq 1){
-            if(!$existing[0].draft){throw 'Published releases must never be overwritten'}
-            gh release upload v0.6.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json release-input/validation.json --clobber
-            if($LASTEXITCODE -ne 0){throw 'Draft asset update failed'}
-            # GITHUB_TOKEN cannot retarget older commits containing workflow changes.
-            # The maintainer sets the exact source commit from build-provenance.json in the UI.
-            gh release edit v0.6.0-preview --title 'Swap 0.6.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
-          }else{
-            gh release create v0.6.0-preview release-input/dist/Swap.exe release-input/dist/Swap.exe.sha256 release-input/build-provenance.json release-input/validation.json --target $source --title 'Swap 0.6.0 preview - KraicDev' --notes-file .github/RELEASE_NOTES.md --draft --prerelease
-          }
-          if($LASTEXITCODE -ne 0){throw 'Draft preparation failed'}
-          Write-Output "Before publication, the maintainer must verify the tag target is $source and validation.json matches the EXE."
+          if($version -ne '1.0.0'){throw 'Unexpected version'}
+          @{author='KraicDev';version=$version;appSha256=$hash;bytes=$exe.Length;sourceCommit=$run.head_sha;buildRun=$run.html_url;ciCorePassed=$report.passed;unsigned=$true} | ConvertTo-Json -Depth 4 | Set-Content release-input/build-provenance.json -Encoding utf8
+          Write-Output "Verified $version $hash from $($run.head_sha). Publish it from the maintainer account after isolated validation."
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-candidate
+          path: |
+            release-input/dist/Swap.exe
+            release-input/dist/Swap.exe.sha256
+            release-input/build-provenance.json

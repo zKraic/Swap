@@ -20,7 +20,7 @@ Las entradas demo son ficticias y no se pueden restaurar en tu equipo. Si el cat
 2. Reinicia para que Windows vuelva a cargar los servicios restaurados.
 3. No vuelven por esta vía: entradas de dispositivos desconectados (Windows las crea de nuevo si el hardware regresa), apps de la Tienda (reinstálalas desde la Tienda) y cachés (se regeneran).
 
-Los respaldos están en `%ProgramData%\Swap\Cleanup\<sesión>`, accesibles solo para administradores. Si una cuarentena fue modificada, no se restaura y la sesión lo indica. Para liberar ese espacio cuando ya no necesites deshacer, borra la carpeta de esa sesión como administrador. Windows también conserva el punto de restauración creado antes de la limpieza, si la protección del sistema está activa.
+Los respaldos están en `%ProgramData%\Swap\Cleanup\<sesión>`, accesibles solo para administradores. Si una cuarentena fue modificada, no se restaura y la sesión lo indica. Para liberar ese espacio cuando ya no necesites deshacer, pulsa **Liberar respaldos de limpieza** en la página Limpieza: muestra el tamaño, pide confirmación y borra los respaldos y la cuarentena de las limpiezas anteriores (incluidos los archivos protegidos que se movieron con privilegio). Después esas limpiezas ya no se pueden deshacer. Una carpeta movida solo en parte (porque otro programa tenía archivos abiertos) vuelve junto a lo que quedó al deshacer. Windows también conserva el punto de restauración creado antes de la limpieza, si la protección del sistema está activa.
 
 ## Cambio de tarjeta preparado
 
