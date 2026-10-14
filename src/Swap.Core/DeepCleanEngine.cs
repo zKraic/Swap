@@ -57,7 +57,7 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
 
     public async Task<CleanupOutcome> RunAsync(DeepCleanPlan plan, IReadOnlySet<string> selected, string session, string secureRoot,
-        Action<string> log, CancellationToken token = default, Action<string>? stage = null, Action<int, int, string>? progress = null)
+        Action<string> log, CancellationToken token = default, Action<string>? stage = null, Action<int, int, string>? progress = null, bool followUp = false)
     {
         var name = Path.GetFileName(Path.GetFullPath(session).TrimEnd('\\'));
         if (!ValidSession(name)) throw new IOException("Invalid cleanup session name.");
@@ -103,7 +103,9 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
             var failedDevices = new HashSet<string>(StringComparer.OrdinalIgnoreCase); int index = 0;
             // Stop services before ending processes: a killed service process could be restarted by its recovery policy.
             foreach (var service in chosen.Where(i => i.Kind == RemnantKind.Service)) await platform.StopServiceAsync(service.Target);
-            var ordered = chosen.OrderBy(i => Array.IndexOf(order, i.Kind)).ToArray(); int position = 0;
+            var ordered = chosen.OrderBy(i => Array.IndexOf(order, i.Kind)).ToArray(); int position = 0; var checkPlan = plan;
+            for (int pass = 0; ; pass++)
+            {
             foreach (var item in ordered)
             {
                 token.ThrowIfCancellationRequested();
@@ -248,10 +250,22 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException or FormatException or TimeoutException)
                 { Record(item, "failed", "", e.Message); }
             }
-            stage?.Invoke("verify");
+            // After a card change, a second pass in the same session (same undo) takes what the first one orphaned,
+            // such as the service of a virtual device it removed. Only automatic, all-selected cleanups do this.
+            if (!followUp || pass > 0) break;
+            var middle = await platform.InventoryAsync(token);
+            if (middle.MachineId != plan.MachineId || !middle.Admin || !middle.Complete) break;
+            var attempted = results.Select(r => r.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var next = DeepCleanPlanner.Create(middle, fresh.Vendors).Items.Where(i => i.Selected && i.Kind != RemnantKind.Uninstaller && !attempted.Contains(i.Key)).ToArray();
+            if (next.Length == 0) break;
+            Log("Segunda pasada: " + next.Length + " restos que dejó la primera.");
+            inventory = middle; checkPlan = plan with { Items = [.. plan.Items, .. next] };
+            foreach (var service in next.Where(i => i.Kind == RemnantKind.Service)) await platform.StopServiceAsync(service.Target);
+            ordered = next.OrderBy(i => Array.IndexOf(order, i.Kind)).ToArray(); position = 0;
+            }            stage?.Invoke("verify");
             var after = await platform.InventoryAsync(token);
             File.WriteAllText(Path.Combine(session, "after.json"), JsonSerializer.Serialize(after));
-            var remaining = DeepCleanPlanner.Refresh(after, plan).Items.Select(i => i.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var remaining = DeepCleanPlanner.Refresh(after, checkPlan).Items.Select(i => i.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < results.Count; i++)
             {
                 if (results[i].Status != "done" || !remaining.Contains(results[i].Key)) continue;

@@ -145,7 +145,7 @@ public partial class MainWindow
             var keys = plan.Items.Where(i => i.Selected && i.Kind != RemnantKind.Uninstaller).Select(i => i.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (!keys.Any(k => !k.StartsWith("process:", StringComparison.Ordinal))) return;
             Log(T("cleanupTitle") + " · " + string.Join(", ", plan.Vendors.Select(VendorLabel)));
-            var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, CleanupStage, CleanupProgress);
+            var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, CleanupStage, CleanupProgress, true);
             lastCleanup = outcome;
             Log(string.Format(T("cleanupDone"), outcome.Done, outcome.Failed, Size(outcome.Freed) is { Length: > 0 } size ? size : "0 KB"));
         }

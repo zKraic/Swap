@@ -81,6 +81,8 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
             new("NvContainerLocalSystem", "NVIDIA LocalSystem Container", Path.Combine(ProgramFiles, "NvContainer", "nvcontainer.exe"), true),
             new("amdsmbus", "AMD SMBus", @"C:\Windows\System32\drivers\amdsmbus.sys", true),
         };
+        // Test hook: the virtual audio device keeps its service in use until the cleanup removes that device.
+        if (VirtualAudioService) services.Add(new("nvvad_WaveExtensible", "NVIDIA Virtual Audio Device (Wave Extensible) (WDM)", Path.Combine(Store("nvvad.inf_amd64_demo"), "nvvad64v.sys"), true));
         var tasks = new List<CommandEntry> { new(@"\NvTmRep_CrashReport1_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}", "NvTmRep_CrashReport1", [Path.Combine(ProgramFiles, "NvContainer", "nvcontainer.exe")], true) };
         var apps = new List<AppEntry>
         {
@@ -99,7 +101,7 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
         var processes = new List<ProcessEntry> { new(424242, "NVIDIA app", Path.Combine(ProgramFiles, "NVIDIA App", "CEF", "NVIDIA app.exe")) };
         return Task.FromResult(new RemnantInventory("DEMO", CpuVendor, CpuName, true, false,
             devices.Where(d => Keep("device:" + d.Id)).ToArray(), packages.Where(p => Keep("package:" + p.Inf)).ToArray(),
-            services.Where(s => Keep("service:" + s.Name)).ToArray(), ["amdkmdag", "amdsmbus", "HDAudBus"],
+            services.Where(s => Keep("service:" + s.Name)).ToArray(), ["amdkmdag", "amdsmbus", "HDAudBus", .. (Keep(@"device:ROOT\UNNAMED_DEVICE\0000") ? ["nvvad_WaveExtensible"] : Array.Empty<string>())],
             tasks.Where(t => Keep("task:" + t.Key)).ToArray(), [], apps.Where(a => Keep("app:" + a.Key)).ToArray(),
             new[] { "NVIDIACorp.NVIDIAControlPanel" }.Where(a => Keep("appx:" + a)).ToArray(), folders,
             new[] { @"HKLM\SOFTWARE\NVIDIA Corporation", @"HKCU\SOFTWARE\NVIDIA Corporation" }.Where(k => Keep("registry:" + k)).ToArray(),
@@ -166,6 +168,7 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
     public Task<CommandResult> DeleteRegistryAsync(string key) => Step("delete-registry:" + key, (key.Contains(@"\Uninstall\", StringComparison.OrdinalIgnoreCase) ? "app:" : "registry:") + key);
     // Test hook: a Windows step that finishes after its time limit.
     public bool SlowTasks { get; set; }
+    public bool VirtualAudioService { get; set; }
     public Task<CommandResult> ExportTaskAsync(string path, string file) => SlowTasks ? throw new TimeoutException("Simulated late Windows step")
         : Backup("export-task:" + path, file, "<Task>" + path + "</Task>");
     public Task<CommandResult> DeleteTaskAsync(string path) => Step("delete-task:" + path, "task:" + path);

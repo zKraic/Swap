@@ -291,6 +291,22 @@ static class DeepCleanTests
             Assert(platform.Calls.Contains("stop:" + DemoCleanupPlatform.RestartedId) && platform.Holder is null, "restarted program not stopped");
             Assert(!Directory.Exists(app) && outcome.Results.Single(r => r.Target == app).Status == "done", string.Join(" | ", outcome.Results.Where(r => r.Target == app).Select(r => r.Status + " " + r.Message)));
         });
+        await test("After a card change a second pass in the same session takes what the first one orphaned", async () =>
+        {
+            var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")) { VirtualAudioService = true }; var secure = Secure(sandbox);
+            var plan = DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]);
+            Assert(plan.Kept.Any(k => k.Key == "service:nvvad_WaveExtensible" && k.Reason == "serviceActive"), "the service starts in use");
+            var session = Session(sandbox);
+            var outcome = await new DeepCleanEngine(platform).RunAsync(plan, All(plan), session, secure, _ => { }, followUp: true);
+            Assert(outcome.Results.Any(r => r.Key == "service:nvvad_WaveExtensible" && r.Status == "done") && outcome.Failed == 0, string.Join(", ", outcome.Results.Where(r => r.Status != "done").Select(r => r.Key + " " + r.Status)));
+            Assert(DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]).Items.Count == 0, "leftovers after the second pass");
+            var undo = await new DeepCleanEngine(platform).UndoAsync(session, secure, _ => { });
+            Assert(undo.Results.Any(r => r.Key == "service:nvvad_WaveExtensible" && r.Status == "restored"), "the second pass is undone with the first");
+            var manual = new DemoCleanupPlatform(Path.Combine(Sandbox(), "System")) { VirtualAudioService = true };
+            var manualPlan = DeepCleanPlanner.Create(await manual.InventoryAsync(), [Vendor.Nvidia]);
+            var single = await new DeepCleanEngine(manual).RunAsync(manualPlan, All(manualPlan), Session(sandbox), Secure(Sandbox()), _ => { });
+            Assert(!single.Results.Any(r => r.Key == "service:nvvad_WaveExtensible"), "a manual cleanup only does what was selected");
+        });
         await test("A file that stays open leaves only itself behind; undo puts the rest back beside it", async () =>
         {
             var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")); var secure = Secure(sandbox);
