@@ -9,7 +9,7 @@ namespace Swap.Windows;
 
 public sealed partial class WindowsPlatform : IPlatform
 {
-    private static string SystemExe(string name) => Path.Combine(Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Sysnative") : Environment.GetFolderPath(Environment.SpecialFolder.System), name);
+    internal static string SystemExe(string name) => Path.Combine(Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Sysnative") : Environment.GetFolderPath(Environment.SpecialFolder.System), name);
     public static async Task<CommandResult> RunAsync(string exe, IEnumerable<string> args, int timeoutSeconds = 180)
     {
         var info = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
@@ -47,7 +47,9 @@ public sealed partial class WindowsPlatform : IPlatform
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Swap.Windows.Scripts." + name + ".ps1")!;
         using var reader = new StreamReader(stream); return reader.ReadToEnd();
     }
-    public static bool IsKnownRemoteTool(string name) => name.StartsWith("TeamViewer", StringComparison.OrdinalIgnoreCase) ||
+    // TeamViewer keeps its service and tray processes running while idle; TeamViewer_Desktop runs only during an incoming session.
+    // The other tools give no such signal and still block while they run.
+    public static bool IsKnownRemoteTool(string name) => name.Equals("TeamViewer_Desktop", StringComparison.OrdinalIgnoreCase) ||
         new[] { "AnyDesk", "rustdesk", "remoting_host", "parsecd" }.Contains(name, StringComparer.OrdinalIgnoreCase);
     public async Task<Snapshot> ScanAsync()
     {

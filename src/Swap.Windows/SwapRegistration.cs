@@ -4,8 +4,8 @@ using Microsoft.Win32;
 using Swap.Core;
 namespace Swap.Windows;
 
-// KraicDev. "I'm changing my card": the intent lives in the user's profile and HKCU RunOnce opens Swap after the next sign-in.
-// Elevation still goes through Windows UAC. The intent only selects what the person already chose; every action is re-planned.
+// KraicDev. "I'm changing my card": the intent lives in the user's profile and a sign-in task opens Swap elevated after the next
+// sign-in (HKCU RunOnce with UAC as fallback). The intent only selects what the person already chose; every action is re-planned.
 public static class SwapRegistration
 {
     private const string RunOnce = @"Software\Microsoft\Windows\CurrentVersion\RunOnce";
@@ -30,13 +30,15 @@ public static class SwapRegistration
     public static async Task ArmAsync(string executable)
     {
         var (cached, _) = await ResumeRegistration.CacheAsync(executable);
+        var task = await LogonTask.RegisterAsync(LogonTask.AfterSwap, executable, Argument);
         using var key = Registry.CurrentUser.CreateSubKey(RunOnce);
-        key.SetValue(ValueName, '"' + cached + "\" " + Argument, RegistryValueKind.String);
+        key.SetValue(ValueName, '"' + cached + "\" " + Argument + (task ? " " + LogonTask.FallbackArgument : ""), RegistryValueKind.String);
     }
     // While a driver change continues after a restart, that continuation opens Swap instead.
     public static void Disarm()
     {
-        using var key = Registry.CurrentUser.OpenSubKey(RunOnce, true); key?.DeleteValue(ValueName, false);
+        using (var key = Registry.CurrentUser.OpenSubKey(RunOnce, true)) key?.DeleteValue(ValueName, false);
+        LogonTask.Delete(LogonTask.AfterSwap);
     }
     public static bool Armed()
     {

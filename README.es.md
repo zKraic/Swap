@@ -4,7 +4,7 @@
 
 [Página](https://zkraic.github.io/Swap/) · [Descargar](https://github.com/zKraic/Swap/releases) · [English](README.md)
 
-**Versión experimental 0.6.0.** La instalación y el cambio guiado se probaron con un backend simulado. La limpieza profunda se probó en un Windows 10 aislado con paquetes de driver firmados reales y se midió frente a Display Driver Uninstaller con el driver oficial de AMD. Falta validar un cambio físico de tarjeta y juegos; la firma depende de aprobación externa. [Resultados](docs/validation/V060-RESULTS.md) · [Comparación con DDU](docs/COMPARISON-DDU.md).
+**Swap 1.0.** Cada EXE publicado se valida tal cual: pruebas de lógica e interfaz, un Windows aislado con paquetes de driver firmados reales, una limpieza profunda medida frente a Display Driver Uninstaller con el driver oficial de AMD y los cambios de tarjeta registrados en [Resultados](docs/validation/V100-RESULTS.md), con cada límite. La firma depende de aprobación externa. [Comparación con DDU](docs/COMPARISON-DDU.md).
 
 ![Interfaz real de Swap en modo demo](.github/media/app-dark.png)
 
@@ -14,7 +14,7 @@ Windows guarda la tarjeta retirada como *dispositivo desconectado* que sigue usa
 
 ## Voy a cambiar de tarjeta
 
-Pulsa **Voy a cambiar de tarjeta** antes de apagar. Swap respalda los drivers gráficos y guarda cómo ven la tarjeta actual los juegos y las pantallas. Cambia la tarjeta y enciende: al iniciar sesión Swap se abre solo, reconoce la nueva, te da 20 segundos para cancelar, instala su driver, retira la marca anterior con respaldo y te entrega un **informe de validación**. Contempla que la tarjeta anterior siga conectada, que no aparezca la nueva, que haya varias nuevas y que el driver pida reiniciar; nunca apaga ni reinicia sin tu confirmación.
+Pulsa **Voy a cambiar de tarjeta** antes de apagar. Swap respalda los drivers gráficos y guarda cómo ven la tarjeta actual los juegos y las pantallas. Pulsa **Apagar el equipo** en Swap (apagado completo, para poder desconectarlo de la corriente), cambia la tarjeta y enciende: al iniciar sesión Swap se abre solo con permisos de administrador y sin aviso de UAC, reconoce la nueva, te da 20 segundos para cancelar, instala su driver, retira la marca anterior con respaldo y te entrega un **informe de validación**. Si la red aún se está conectando o Windows instala el mismo driver por su cuenta, Swap espera y reintenta hasta ocho minutos, y conserva el driver que instaló Windows una vez verificado. Contempla que la tarjeta anterior siga conectada, que no aparezca la nueva, que haya varias nuevas y que el driver pida reiniciar; nunca apaga ni reinicia sin tu confirmación.
 
 ## Limpieza profunda
 
@@ -38,9 +38,9 @@ La misma página retira **versiones antiguas sin uso del driver actual** (a menu
 
 Descarga **[Swap.exe 0.6.0](https://github.com/zKraic/Swap/releases/download/v0.6.0-preview/Swap.exe)** y, si quieres, su [SHA-256](https://github.com/zKraic/Swap/releases/download/v0.6.0-preview/Swap.exe.sha256) (`CE5BF7F8…2D825CC`); [notas de la versión](https://github.com/zKraic/Swap/releases/tag/v0.6.0-preview). Ábrelo y acepta UAC. No hay instalador de Swap ni ZIP ni instalación separada de .NET. El diagnóstico no necesita reiniciar; Windows puede exigirlo después de cambiar drivers. Swap guarda la sesión y conserva lo pendiente.
 
-Windows 10/11 x64, PowerShell 5.1, conexión y Windows Update operativo para descarga automática. 4 GB libres más el espacio del driver. No instala toda la suite del fabricante ni fuerza retiradas, modo seguro o ajustes de juegos. Bloquea cambios en RDP, mientras se ejecutan herramientas remotas conocidas (incluido TeamViewer inactivo) y ante reinicios pendientes de Windows. El diagnóstico y respaldo independiente siguen disponibles. Si hay varias gráficas candidatas, exige elegir la nueva.
+Windows 10/11 x64, PowerShell 5.1, conexión y Windows Update operativo para descarga automática. 4 GB libres más el espacio del driver. No instala toda la suite del fabricante ni fuerza retiradas, modo seguro o ajustes de juegos. Bloquea cambios en RDP, durante una sesión de control remoto (TeamViewer mientras alguien está conectado; AnyDesk, RustDesk, Escritorio remoto de Chrome o Parsec siempre que se ejecuten) y mientras Windows espera un reinicio de mantenimiento; los borrados pendientes de archivos sobrantes de instaladores no cuentan. El diagnóstico y respaldo independiente siguen disponibles. Si hay varias gráficas candidatas, exige elegir la nueva.
 
-Seis idiomas según el PC y temas claro/oscuro/sistema. Datos en `%LOCALAPPDATA%\Swap`; una carpeta `Data` escribible junto al EXE permite almacenamiento portable.
+Seis idiomas según el PC y temas claro/oscuro/sistema. Datos en `%LOCALAPPDATA%\Swap`; una carpeta `Data` escribible junto al EXE permite almacenamiento portable. Sin servicios ni tareas permanentes: un cambio de tarjeta preparado, o un cambio de driver que pide reiniciar, registra una tarea de inicio de sesión para tu cuenta (con RunOnce de respaldo, que pide UAC solo si la tarea no puede ejecutarse). Abre una copia de Swap en `%ProgramData%\Swap\Continuation` que solo los administradores pueden modificar, y Swap borra la tarea al terminar o al cancelar.
 
 Código en `main`. [Contribuir](CONTRIBUTING.md) · [Seguridad](SECURITY.md) · [Recuperación](docs/RECOVERY.md) · [Firma](docs/SIGNING.md).
 

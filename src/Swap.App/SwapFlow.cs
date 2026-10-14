@@ -114,10 +114,33 @@ public partial class MainWindow
         // From here a restart is handled by the driver continuation, which opens Swap itself.
         if (!Demo) SwapRegistration.Disarm();
         swapCleanup = true; lastVerified = false; lastCleanup = null;
-        ShowSwap("installing", target);
-        await Guard(() => AutomaticAsync(false));
+        // Right after sign-in the network may not be up yet, or Windows may be installing the same driver on its own.
+        // Each attempt re-plans from a fresh inventory; a driver Windows installed meanwhile is verified and kept.
+        for (int attempt = 0; ; attempt++)
+        {
+            ShowSwap("installing", target); swapAttempts = attempt + 1;
+            await Guard(() => AutomaticAsync(false));
+            if (lastVerified || rebootRequested || swapIntent is null || attempt >= SwapDetection.InstallRetries.Count) break;
+            Log(T("swapRetryLog") + " · " + Status.Text);
+            if (!await WaitForRetryAsync(Demo ? 1 : SwapDetection.InstallRetries[attempt], target)) return;
+            SelectAdapter(target.Id);
+        }
         if (lastVerified) await Guard(FinishSwapCoreAsync);
         else ShowSwap(rebootRequested ? "continuing" : "review", target);
+    }
+    private CancellationTokenSource? swapWait;
+    private int swapAttempts;
+    private async Task<bool> WaitForRetryAsync(int seconds, Adapter target)
+    {
+        using var wait = swapWait = new CancellationTokenSource();
+        try
+        {
+            ShowSwap("retry", target);
+            for (int left = seconds; left > 0; left--) { SwapText.Text = string.Format(T("swapRetry"), left); await Task.Delay(1000, wait.Token); }
+            return swapIntent is not null;
+        }
+        catch (OperationCanceledException) { return false; }
+        finally { swapWait = null; }
     }
     private async Task FinishSwapCoreAsync()
     {
@@ -207,12 +230,15 @@ public partial class MainWindow
                 SwapTitle.Text = string.Format(T("swapDetectedTitle"), adapter?.Name ?? "GPU"); SwapText.Text = string.Format(T("swapCountdown"), swapSeconds); Primary("swapStartNow"); break;
             case "ambiguous": SwapTitle.Text = T("swapAmbiguousTitle"); SwapText.Text = T("swapAmbiguousText"); Primary("swapStartNow"); break;
             case "installing": SwapTitle.Text = T("swapInstallingTitle"); SwapText.Text = adapter?.Name ?? ""; SwapCancelButton.Visibility = Visibility.Collapsed; break;
+            case "retry": SwapTitle.Text = T("swapInstallingTitle"); SwapText.Text = ""; break;
             case "continuing": SwapTitle.Text = T("swapContinuingTitle"); SwapText.Text = T("reboot"); break;
             case "review": SwapTitle.Text = T("swapReviewTitle"); SwapText.Text = T("review"); break;
             case "done":
                 SwapTitle.Text = T("swapDoneTitle");
                 var games = lastValidation is null ? "" : T(lastValidation.GamesAfter.Any(f => f.Attention) ? "gamesAttention" : "gamesReady");
                 SwapText.Text = string.Format(T("swapDoneText"), lastValidation?.CleanupRemoved ?? 0, games);
+                // Windows often starts the new card at 60 Hz; Diagnostics applies the highest rate with keep or revert.
+                if (graphicsDiagnostics?.Displays.FirstOrDefault(d => d.Hz > 1 && d.MaximumHz > d.Hz + 1) is { } slow) SwapText.Text += " " + string.Format(T("swapRefresh"), slow.Hz, slow.MaximumHz);
                 Primary("swapOpenReport"); SwapSecondaryButton.Content = T("swapShare"); SwapSecondaryButton.Visibility = Visibility.Visible; SwapCancelButton.Content = T("swapDismiss"); break;
             default: SwapBanner.Visibility = Visibility.Collapsed; break;
         }
@@ -241,6 +267,7 @@ public partial class MainWindow
     private void SwapCancel(object sender, RoutedEventArgs e)
     {
         if (busy) return;
+        swapWait?.Cancel();
         if (swapState != "done") { ClearIntent(); Status.Text = T("swapCancelled"); }
         swapState = ""; SwapBanner.Visibility = Visibility.Collapsed; UpdateButtons();
     }

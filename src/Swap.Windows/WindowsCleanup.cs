@@ -715,10 +715,13 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
     }
 
     // Backups that can restore services or registry data are written only to an administrator-only folder.
-    public static string SecureRoot()
+    public static string SecureRoot() => SecureFolder("Cleanup", false);
+
+    // Folders under %ProgramData%\Swap that only administrators and SYSTEM can change; users may get read access.
+    internal static string SecureFolder(string name, bool usersRead)
     {
         var parent = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Swap");
-        var root = Path.Combine(parent, "Cleanup");
+        var root = Path.Combine(parent, name);
         Directory.CreateDirectory(parent);
         if ((File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0) throw new IOException("Linked Swap data folder is not allowed.");
         var administrators = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
@@ -727,13 +730,15 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
         security.SetAccessRuleProtection(true, false);
         foreach (var sid in new[] { administrators, system })
             security.AddAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+        if (usersRead)
+            security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null), FileSystemRights.ReadAndExecute, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
         var info = new DirectoryInfo(root);
         if (!info.Exists) info.Create(security);
         else
         {
-            if ((info.Attributes & FileAttributes.ReparsePoint) != 0) throw new IOException("Linked cleanup folder is not allowed.");
+            if ((info.Attributes & FileAttributes.ReparsePoint) != 0) throw new IOException("Linked Swap folder is not allowed.");
             var owner = info.GetAccessControl().GetOwner(typeof(SecurityIdentifier));
-            if (owner != administrators && owner != system) throw new IOException("The cleanup backup folder has an unexpected owner. Review " + root + ".");
+            if (owner != administrators && owner != system) throw new IOException("A Swap folder has an unexpected owner. Review " + root + ".");
             info.SetAccessControl(security);
         }
         return root;

@@ -39,7 +39,7 @@ public partial class MainWindow : Window
         if (language is not null) preferences = preferences with { Language = language };
         if (theme is not null) preferences = preferences with { Theme = theme };
         dark = preferences.Apply(); InitializeComponent(); PopulatePreferences(); StoragePath.Text = dataRoot;
-        VersionLabel.Text = "KraicDev · v" + ApplicationVersion + " · " + T("preview");
+        VersionLabel.Text = "KraicDev · v" + ApplicationVersion;
         SystemEvents.UserPreferenceChanged += SystemPreferenceChanged;
     }
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -103,7 +103,7 @@ public partial class MainWindow : Window
     private void PaintSnapshot()
     {
         if (snapshot is null) return; var a = TargetAdapter;
-        VersionLabel.Text = "KraicDev · v" + ApplicationVersion + " · " + T("preview");
+        VersionLabel.Text = "KraicDev · v" + ApplicationVersion;
         GpuName.Text = a?.Name ?? T(snapshot.Adapters.Count(x => x.Vendor is Vendor.Amd or Vendor.Nvidia or Vendor.Intel) > 1 ? "selectGpu" : "noGpu"); GpuVendor.Text = a is null ? "NVIDIA · AMD · Intel" : VendorName(a.Vendor);
         DriverVersion.Text = a?.Version is { Length: > 0 } version ? version : "—";
         var healthy = a is { Problem: 0, Signed: true } && Planner.IsOem(a.Inf);

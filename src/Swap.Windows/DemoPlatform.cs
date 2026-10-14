@@ -20,7 +20,14 @@ public sealed class DemoPlatform : IPlatform
         [Hardware], "DEMO", true, false, true));
     public async Task<CommandResult> ExportAsync(string inf, string destination)
     { await Task.Delay(300); await File.WriteAllTextAsync(Path.Combine(destination, "demo.inf"), "; simulated backup only"); return new(0, "Respaldo simulado."); }
-    public async Task<CommandResult> InstallAsync(Package package) { await Task.Delay(800); installed = true; return new(0, "Instalación simulada."); }
+    // Simulates Windows being busy right after sign-in: the first installs fail, a later attempt succeeds.
+    public int FailedInstalls { get; set; }
+    public async Task<CommandResult> InstallAsync(Package package)
+    {
+        await Task.Delay(800);
+        if (FailedInstalls > 0) { FailedInstalls--; return new(1, "Instalación simulada fallida: Windows ocupado."); }
+        installed = true; return new(0, "Instalación simulada.");
+    }
     public async Task<CommandResult> DeleteAsync(string inf) { await Task.Delay(300); deleted = true; return new(0, "Retirada simulada."); }
     public Task<string> RestorePointAsync() => Task.FromResult("Punto de restauración simulado.");
     public Task<bool> VerifyGraphicsAsync(Adapter adapter) => Task.FromResult(true);

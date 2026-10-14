@@ -116,7 +116,7 @@ public partial class MainWindow
             {
                 var exported=report.RootElement;
                 var expectedVersion=System.Reflection.Assembly.GetExecutingAssembly().GetName().Version!.ToString(3);
-                if(exported.GetProperty("version").GetString()!=expectedVersion || !VersionLabel.Text.Contains(expectedVersion) || !VersionLabel.Text.Contains(T("preview")) || exported.GetProperty("author").GetString()!="KraicDev" || !exported.GetProperty("simulated").GetBoolean() || exported.GetProperty("adapters").GetArrayLength()!=snapshot!.Adapters.Count || exported.GetProperty("preparation").GetProperty("DriverHealthy").GetBoolean() || exported.GetProperty("preparation").GetProperty("Ready").GetBoolean())
+                if(exported.GetProperty("version").GetString()!=expectedVersion || !VersionLabel.Text.Contains(expectedVersion) || exported.GetProperty("author").GetString()!="KraicDev" || !exported.GetProperty("simulated").GetBoolean() || exported.GetProperty("adapters").GetArrayLength()!=snapshot!.Adapters.Count || exported.GetProperty("preparation").GetProperty("DriverHealthy").GetBoolean() || exported.GetProperty("preparation").GetProperty("Ready").GetBoolean())
                     throw new InvalidOperationException("Exported diagnostic report metadata or inventory failed.");
             }
             results.Add(new { scenario="diagnostic-report-export-demo",passed=true });
@@ -137,12 +137,14 @@ public partial class MainWindow
             if (swapIntent is not { Phase: "prepared", FromVendor: Vendor.Nvidia } || SwapBanner.Visibility != Visibility.Visible || PrepareButton.IsEnabled || !File.Exists(IntentFile))
                 throw new InvalidOperationException("Card change preparation failed.");
             UpdateLayout(); Capture(Path.Combine(output, "swap-prepared.png"));
-            platform = new DemoPlatform { Target = Vendor.Amd }; await AnalyzeAsync();
+            // The first install fails as if Windows were busy after sign-in; the card change retries on its own.
+            platform = new DemoPlatform { Target = Vendor.Amd, FailedInstalls = 1 }; await AnalyzeAsync();
             swapIntent = LoadIntent(); await ResumeSwapAsync();
             if (swapState != "swapped" || TargetAdapter?.Vendor != Vendor.Amd || swapIntent?.Starts != 1) throw new InvalidOperationException("New card not detected: " + swapState);
             UpdateLayout(); Capture(Path.Combine(output, "swap-detected.png"));
             await StartSwapInstallAsync();
-            if (swapState != "done" || swapIntent is not null || File.Exists(IntentFile) || lastValidationPath is null || !File.Exists(lastValidationPath) || lastValidation is not { DriverVerified: true, CleanupRemoved: > 0, LeftoversAfter: 0 })
+            if (swapState != "done" || swapIntent is not null || File.Exists(IntentFile) || lastValidationPath is null || !File.Exists(lastValidationPath) || lastValidation is not { DriverVerified: true, CleanupRemoved: > 0, LeftoversAfter: 0 } ||
+                swapAttempts != 2 || ((DemoPlatform)platform).FailedInstalls != 0)
                 throw new InvalidOperationException($"Card change did not finish: {swapState} {lastValidation}");
             var markdown = await File.ReadAllTextAsync(lastValidationPath);
             if (!markdown.Contains("### Swap validation report") || !markdown.Contains("Simulated demo") || !markdown.Contains("Direct3D 12 available") ||

@@ -66,6 +66,8 @@ public static class SwapDetection
 {
     public const int Schema = 1;
     public const int MaximumStarts = 10;
+    // Seconds between install attempts after the swap: the network or Windows' own driver installation may still be starting.
+    public static readonly IReadOnlyList<int> InstallRetries = [30, 60, 90, 120, 180];
     public static bool Valid(SwapIntent? intent) => intent is { Schema: Schema, MachineId.Length: > 0, FromAdapterId.Length: > 0 } &&
         intent.Phase is "prepared" or "installing" or "done" && intent.Starts is >= 0 and <= 1000;
     // waiting: the old card is still connected; swapped: exactly one GPU that was not there before; ambiguous: several.

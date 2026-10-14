@@ -5,6 +5,7 @@ using System.Security.Principal;
 namespace Swap.App;
 public partial class App : Application
 {
+    private static Mutex? instance;
     protected override void OnStartup(StartupEventArgs e)
     {
         // Child process of the graphics API check: no window, no elevation, no preferences.
@@ -14,6 +15,14 @@ public partial class App : Application
         bool readonlyMode = e.Args.Contains("--readonly");
         using var identity = WindowsIdentity.GetCurrent();
         bool admin = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        // After a sign-in the task opens Swap elevated; its RunOnce fallback steps aside, and only one continuation window opens.
+        bool continuation = e.Args.Contains(Swap.Windows.SwapRegistration.Argument) || e.Args.Contains(Swap.Windows.ResumeRegistration.Argument);
+        if (continuation && admin)
+        {
+            instance = new Mutex(true, Swap.Windows.LogonTask.InstanceName, out var created);
+            if (!created) { Shutdown(); return; }
+        }
+        if (continuation && !admin && e.Args.Contains(Swap.Windows.LogonTask.FallbackArgument) && Swap.Windows.LogonTask.WaitForInstance(TimeSpan.FromSeconds(60))) { Shutdown(); return; }
         // Keep the demo and diagnostic entry points available without elevation.
         if (!demo && !readonlyMode && !admin)
         {

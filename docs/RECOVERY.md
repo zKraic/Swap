@@ -7,7 +7,7 @@ Los respaldos se crean antes de cada instalación o limpieza. Los del cambio de 
 1. Deja terminar la operación de Windows. No elimines DriverStore manualmente ni repitas herramientas de limpieza.
 2. Consulta Recuperación y Detalles técnicos. `state.json` y `journal.jsonl` conservan el paso y el resultado.
 3. Si pide reinicio, guarda tu trabajo y usa el botón con confirmación o reinicia normalmente.
-4. Swap se abre al iniciar sesión para retomar la verificación y la limpieza pendiente. Windows puede pedir UAC nuevamente. Se comprueba que el equipo y la GPU sean los mismos, que haya un arranque nuevo y que el driver esté firmado, activo y sin error PnP. No vuelve a ejecutar el instalador guardado. Si cancelas UAC, puedes abrir el EXE más adelante; se conserva la sesión pendiente.
+4. Swap se abre al iniciar sesión para retomar la verificación y la limpieza pendiente, con una tarea de inicio de sesión que no pide UAC; si la tarea no pudo registrarse, el RunOnce de respaldo pide UAC. Se comprueba que el equipo y la GPU sean los mismos, que haya un arranque nuevo y que el driver esté firmado, activo y sin error PnP. No vuelve a ejecutar el instalador guardado. Si cancelas UAC, puedes abrir el EXE más adelante; se conserva la sesión pendiente.
 5. Para un respaldo anterior, abre **Recuperación**, selecciónalo y pulsa **Restaurar este respaldo**. Swap comprueba firma/compatibilidad y respalda el actual antes de intentar incorporar el INF.
 
 Windows decide qué driver puede activarse. Si el antiguo tiene menor prioridad, Swap informa el resultado pendiente y no fuerza su activación. Para un downgrade deliberado usa la opción Revertir al controlador anterior del Administrador de dispositivos, si existe, o las instrucciones del fabricante. Un INF no restaura aplicaciones, audio HDMI ni perfiles.
@@ -24,7 +24,7 @@ Los respaldos están en `%ProgramData%\Swap\Cleanup\<sesión>`, accesibles solo 
 
 ## Cambio de tarjeta preparado
 
-Si pulsaste **Voy a cambiar de tarjeta** y al final no cambias la tarjeta, abre Swap y pulsa **Cancelar el cambio**: se borra la preparación y la entrada RunOnce; el respaldo se conserva en Recuperación. Si al encender no aparece la tarjeta nueva, Swap lo avisa y vuelve a comprobar en el siguiente inicio; tras 10 inicios sin una tarjeta nueva la preparación caduca. Con la tarjeta anterior otra vez conectada, Swap solo espera.
+Si pulsaste **Voy a cambiar de tarjeta** y al final no cambias la tarjeta, abre Swap y pulsa **Cancelar el cambio**: se borran la preparación, la tarea de inicio de sesión y la entrada RunOnce; el respaldo se conserva en Recuperación. Si Swap no puede abrirse, borra la tarea con `schtasks /Delete /TN "\KraicDev\Swap after card change" /F` en una consola de administrador. Si al encender no aparece la tarjeta nueva, Swap lo avisa y vuelve a comprobar en el siguiente inicio; tras 10 inicios sin una tarjeta nueva la preparación caduca. Con la tarjeta anterior otra vez conectada, Swap solo espera.
 
 ## Sin escritorio operativo
 

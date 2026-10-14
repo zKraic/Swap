@@ -39,7 +39,9 @@ if ($admin) {
 $pending = (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or
            (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired')
 $rename = Get-ItemProperty -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name PendingFileRenameOperations -ErrorAction SilentlyContinue
-$pending = $pending -or ($null -ne $rename.PendingFileRenameOperations)
+# Pending deletions (installer rollback files, old copies) need no restart before a driver change; a pending replacement does.
+$operations = @($rename.PendingFileRenameOperations)
+for ($i = 0; $i + 1 -lt $operations.Count; $i += 2) { if ($operations[$i + 1]) { $pending = $true } }
 # Some boards report an all-zero or all-F UUID; the Windows installation GUID then identifies this PC.
 $machine = [string](Get-CimInstance Win32_ComputerSystemProduct).UUID
 if (!$machine -or $machine -match '^[0F-]+$') { $machine = 'WIN-' + [string](Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Cryptography' -Name MachineGuid).MachineGuid }

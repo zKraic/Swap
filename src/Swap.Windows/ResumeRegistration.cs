@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Text.Json;
 namespace Swap.Windows;
 
-// KraicDev. HKCU RunOnce uses normal user startup; elevation still goes through Windows UAC.
+// KraicDev. A sign-in task continues elevated after a restart; HKCU RunOnce with UAC remains the fallback.
 public static class ResumeRegistration
 {
     private const string RunOnce=@"Software\Microsoft\Windows\CurrentVersion\RunOnce";
@@ -28,9 +28,11 @@ public static class ResumeRegistration
         var (cached,hash)=await CacheAsync(executable);
         var pending=new Pending(session,parent.Parent!.FullName,hash);
         File.WriteAllText(Marker+".tmp",JsonSerializer.Serialize(pending));File.Move(Marker+".tmp",Marker,true);
+        var task=await LogonTask.RegisterAsync(LogonTask.Continue,executable,Argument);
         using var key=Registry.CurrentUser.CreateSubKey(RunOnce);
-        key.SetValue(ValueName,'"'+cached+"\" --continue",RegistryValueKind.String);
+        key.SetValue(ValueName,'"'+cached+"\" "+Argument+(task?" "+LogonTask.FallbackArgument:""),RegistryValueKind.String);
     }
+    public const string Argument="--continue";
     // A local copy keeps working when the original EXE was on a removable drive.
     internal static async Task<(string Cached,string Hash)> CacheAsync(string executable)
     {
@@ -51,7 +53,8 @@ public static class ResumeRegistration
     internal static string Folder=>DirectoryPath;
     public static void Clear()
     {
-        using var key=Registry.CurrentUser.OpenSubKey(RunOnce,true);key?.DeleteValue(ValueName,false);
+        using(var key=Registry.CurrentUser.OpenSubKey(RunOnce,true))key?.DeleteValue(ValueName,false);
+        LogonTask.Delete(LogonTask.Continue);
         if(File.Exists(Marker))File.Delete(Marker);
         // Keep the small cache: an executable cannot be deleted while it is running.
     }

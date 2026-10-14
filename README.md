@@ -4,7 +4,7 @@
 
 **Prepare Windows after connecting a graphics card of another brand.** NVIDIA, AMD and Intel Arc. Installs the new driver, then removes what the old card left behind, with a backup and an undo button. Free, open source, no account or subscription.
 
-> **Experimental preview · Windows 10/11 x64.** Driver installation and the guided card change have been tested with a simulated backend, not a physical GPU replacement or games. Deep cleanup was exercised on an isolated Windows 10 guest with real signed driver packages and measured against Display Driver Uninstaller with the official AMD display driver. Evaluate diagnostics and demo first. The executable is unsigned; trusted signing depends on external approval. [Validation](docs/validation/V060-RESULTS.md) · [Comparison with DDU](docs/COMPARISON-DDU.md) · [Code signing policy](docs/SIGNING.md).
+> **Swap 1.0 · Windows 10/11 x64.** Every release executable is validated as built: logic and interface tests, an isolated Windows guest with real signed driver packages, a deep cleanup measured against Display Driver Uninstaller with the official AMD driver, and the card changes recorded in [Validation](docs/validation/V100-RESULTS.md), where each result and limit is listed. The executable is unsigned; trusted signing depends on external approval. [Comparison with DDU](docs/COMPARISON-DDU.md) · [Code signing policy](docs/SIGNING.md).
 
 ![Actual Swap interface in demo mode](.github/media/app-dark-en.png)
 
@@ -16,7 +16,7 @@ Windows keeps a removed card as a *disconnected device* that still owns its driv
 
 ### I'm changing my card
 
-Press **I'm changing my card** before you shut down. Swap backs up the graphics drivers and records how games and displays see the current card. Change the card and power on: after sign-in Swap opens by itself, recognizes the new card, gives you 20 seconds to cancel, installs its driver, removes the old brand with a backup and hands you a **validation report**. The old card still connected, no new card detected, several new cards and a driver restart are handled; nothing is shut down or restarted without your confirmation.
+Press **I'm changing my card** before you shut down. Swap backs up the graphics drivers and records how games and displays see the current card. Press **Shut down** in Swap (a full shutdown, so the PC can be unplugged), change the card and power on: after sign-in Swap opens by itself with administrator rights and no UAC prompt, recognizes the new card, gives you 20 seconds to cancel, installs its driver, removes the old brand with a backup and hands you a **validation report**. If the network is still connecting or Windows is installing the same driver on its own, Swap waits and tries again for up to eight minutes and keeps a driver Windows installed once it is verified. The old card still connected, no new card detected, several new cards and a driver restart are handled; nothing is shut down or restarted without your confirmation.
 
 ## Deep cleanup
 
@@ -52,11 +52,11 @@ The same page can remove **older unused versions of the current driver** (often 
 
 Automatic mode requires internet, a working Windows Update service, PowerShell 5.1 and at least 4 GB free plus driver space. It respects existing policies. Catalog drivers may be older than manufacturer releases. It does not automatically install the full Adrenalin/NVIDIA suite, PhysX or optional vendor applications. No forced package removal, Safe Mode boot changes or game tweaks.
 
-Windows 7/8, x86 and ARM64 are not validated targets. Driver changes are blocked in Windows RDP sessions, while a known remote-control tool is running (including idle TeamViewer services), and during pending Windows servicing restarts. Diagnostics and independent backup remain available. Software inventory cannot certify GPU power or every game.
+Windows 7/8, x86 and ARM64 are not validated targets. Driver changes are blocked in Windows RDP sessions, during a remote-control session (TeamViewer while someone is connected; AnyDesk, RustDesk, Chrome Remote Desktop or Parsec whenever they run) and while Windows servicing waits for a restart. Pending deletions of leftover installer files do not count as a pending restart. Diagnostics and independent backup remain available. Software inventory cannot certify GPU power or every game.
 
 ## Portable by default
 
-The EXE includes its runtime. Local data is stored in `%LOCALAPPDATA%\Swap`; create a writable `Data` folder beside the EXE before opening it for removable-drive storage. Cleanup backups that could restore services or registry data stay in `%ProgramData%\Swap\Cleanup`. No permanent service or scheduled task. Driver operations requiring restart may temporarily register RunOnce and cache Swap for continuation; another UAC prompt may occur.
+The EXE includes its runtime. Local data is stored in `%LOCALAPPDATA%\Swap`; create a writable `Data` folder beside the EXE before opening it for removable-drive storage. Cleanup backups that could restore services or registry data stay in `%ProgramData%\Swap\Cleanup`. No permanent service or scheduled task. A prepared card change, or a driver change that needs a restart, registers one sign-in task for your account (plus a RunOnce fallback that asks for UAC only if the task cannot run). It opens a copy of Swap in `%ProgramData%\Swap\Continuation` that only administrators can change, and Swap deletes the task when it finishes or you cancel.
 
 Six languages follow the PC language with English fallback: Spanish, English, Portuguese, French, German and Italian. Light/dark/system themes, keyboard navigation and high contrast.
 
@@ -83,4 +83,4 @@ Copyright © 2026 **KraicDev** · [GPL-3.0-or-later](LICENSE). Distributed modif
 
 Official repository: **[zKraic/Swap](https://github.com/zKraic/Swap)**. NVIDIA, AMD, Intel and Microsoft do not sponsor or certify Swap. Their drivers are not bundled. Display Driver Uninstaller is an independent project by Wagnardsoft; it is not used or included, and was run only inside an isolated virtual machine for the published comparison. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Privacy](docs/PRIVACY.md) · [Code signing policy](docs/SIGNING.md).
 
-0.6.0 adds the guided card change, the Direct3D 12/Vulkan/OpenCL games check, the validation report and a deeper cleanup measured against DDU. [Changelog](CHANGELOG.md) · [Community and hardware results](docs/COMMUNITY.md).
+1.0.0 makes the card change fully automatic after sign-in: no UAC prompt, waits for the network or Windows' own driver installation, full shutdown before unplugging, and no false blocks from idle TeamViewer or leftover installer files. [Changelog](CHANGELOG.md) · [Community and hardware results](docs/COMMUNITY.md).

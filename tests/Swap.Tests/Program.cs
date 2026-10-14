@@ -238,9 +238,9 @@ if(registrationExe is not null) await Test("Real isolated guest RunOnce registra
     Assert(key.GetValue("Swap-KraicDev-Continue") is null);
     var prior=key.GetValueNames().OrderBy(x=>x).ToArray();
     var session=Path.Combine(root,"Sessions",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(session);await File.WriteAllTextAsync(Path.Combine(session,"state.json"),"{}");
-    try {await ResumeRegistration.ArmAsync(registrationExe,session);var pending=ResumeRegistration.Load();Assert(pending?.Session==session);Assert(pending!.ExeSha256==await WindowsPlatform.HashFileAsync(registrationExe));Assert(key.GetValue("Swap-KraicDev-Continue") is string command&&command.EndsWith(" --continue"));}
+    try {await ResumeRegistration.ArmAsync(registrationExe,session);var pending=ResumeRegistration.Load();Assert(pending?.Session==session);Assert(pending!.ExeSha256==await WindowsPlatform.HashFileAsync(registrationExe));Assert(key.GetValue("Swap-KraicDev-Continue") is string command&&(command.EndsWith(" --continue")||command.EndsWith(" --continue "+LogonTask.FallbackArgument)));}
     finally {ResumeRegistration.Clear();}
-    Assert(ResumeRegistration.Load() is null&&key.GetValue("Swap-KraicDev-Continue") is null);Assert(key.GetValueNames().OrderBy(x=>x).SequenceEqual(prior));
+    Assert(ResumeRegistration.Load() is null&&key.GetValue("Swap-KraicDev-Continue") is null&&!LogonTask.Exists(LogonTask.Continue));Assert(key.GetValueNames().OrderBy(x=>x).SequenceEqual(prior));
 });
 var healthAdapter=basic.Before.Adapters[0];
 GraphicsDiagnostics HealthData() => new(DateTimeOffset.UtcNow,[new("DISPLAY1","Monitor",healthAdapter.Id,2560,1440,60,144)],
@@ -275,7 +275,17 @@ await Test("Restart continuation requires verified hardware Direct3D", async()=>
 await Test("Native display hardware prefixes associate with PnP instance IDs",()=>{var d=HealthData();var id=healthAdapter.Id.Split('\\')[0]+"\\"+healthAdapter.Id.Split('\\')[1];var findings=GraphicsHealth.Evaluate(healthAdapter,d with {Displays=[d.Displays[0] with {AdapterId=id.ToLowerInvariant()}]});Assert(findings.Any(f=>f.Code=="displayConnected")&&!findings.Any(f=>f.Code=="noDirectDisplay"));return Task.CompletedTask;});
 await Test("Identical PCI models do not receive guessed display routing",()=>{var d=HealthData();var findings=GraphicsHealth.Evaluate(healthAdapter,d with {Probes=[d.Probes[0],d.Probes[0]]});Assert(findings.Any(f=>f.Code=="displayUnknown")&&!findings.Any(f=>f.Code=="displayConnected"));return Task.CompletedTask;});
 await Test("GPU choice selects one unconfigured card but never guesses multiple targets",()=>{var healthy=healthAdapter with {Inf="oem99.inf"};var basicGpu=healthy with {Id=@"PCI\VEN_8086&DEV_56A0\NEW",Vendor=Vendor.Intel,Inf="display.inf"};Assert(TargetChoice.Select([healthy,basicGpu],null)==basicGpu);Assert(TargetChoice.Select([healthy,basicGpu with {Inf="oem50.inf"}],null) is null);Assert(TargetChoice.Select([healthy with {Inf="display.inf"},basicGpu],null) is null);Assert(TargetChoice.Select([healthy,basicGpu],healthy.Id)==healthy);Assert(TargetChoice.Select([],null) is null);Assert(basicGpu.SelectionLabel.Contains("DEV_56A0"));return Task.CompletedTask;});
-await Test("Known remote-control tools are recognized without stopping them",()=>{foreach(var name in new[]{"TeamViewer","TeamViewer_Service","TeamViewer_Desktop","AnyDesk","RustDesk","remoting_host","parsecd"})Assert(WindowsPlatform.IsKnownRemoteTool(name));foreach(var name in new[]{"explorer","qemu-ga","powershell","dotnet"})Assert(!WindowsPlatform.IsKnownRemoteTool(name));return Task.CompletedTask;});
+await Test("Known remote-control tools are recognized without stopping them",()=>{foreach(var name in new[]{"TeamViewer_Desktop","AnyDesk","RustDesk","remoting_host","parsecd"})Assert(WindowsPlatform.IsKnownRemoteTool(name));foreach(var name in new[]{"explorer","qemu-ga","powershell","dotnet"})Assert(!WindowsPlatform.IsKnownRemoteTool(name));return Task.CompletedTask;});
+await Test("Idle TeamViewer does not block; only its incoming-session process does",()=>{foreach(var name in new[]{"TeamViewer","TeamViewer_Service","tv_w32","tv_x64"})Assert(!WindowsPlatform.IsKnownRemoteTool(name),name);Assert(WindowsPlatform.IsKnownRemoteTool("teamviewer_desktop"));return Task.CompletedTask;});
+await Test("Sign-in task opens Swap elevated for one user, without battery or time limits",()=>{
+    var xml=System.Xml.Linq.XDocument.Parse(LogonTask.Xml("S-1-5-21-1-2-3-1001",@"C:\ProgramData\Swap\Continuation\Swap & <x>.exe","--after-swap"));
+    System.Xml.Linq.XNamespace n="http://schemas.microsoft.com/windows/2004/02/mit/task";string V(string name)=>xml.Descendants(n+name).Single().Value;
+    Assert(xml.Descendants(n+"UserId").All(u=>u.Value=="S-1-5-21-1-2-3-1001")&&xml.Descendants(n+"UserId").Count()==2);
+    Assert(V("LogonType")=="InteractiveToken"&&V("RunLevel")=="HighestAvailable"&&V("ExecutionTimeLimit")=="PT0S"&&V("Priority")=="4");
+    Assert(V("DisallowStartIfOnBatteries")=="false"&&V("StopIfGoingOnBatteries")=="false"&&V("MultipleInstancesPolicy")=="IgnoreNew");
+    Assert(V("Command")==@"C:\ProgramData\Swap\Continuation\Swap & <x>.exe"&&V("Arguments")=="--after-swap"&&V("WorkingDirectory")==@"C:\ProgramData\Swap\Continuation");
+    Assert(!xml.Descendants(n+"TimeTrigger").Any()&&xml.Descendants(n+"LogonTrigger").Count()==1);return Task.CompletedTask;});
+await Test("Install retries after a card change stay under ten minutes",()=>{Assert(SwapDetection.InstallRetries.Count>=3&&SwapDetection.InstallRetries.Sum()<600&&SwapDetection.InstallRetries.All(s=>s>=30));return Task.CompletedTask;});
 await Test("Every successful workflow stores a final preparation receipt",async()=>{
     foreach(var mode in new[]{"install","maintenance","resume"}){
         var f=Fake.Standard();var s=Session();Outcome outcome;
@@ -330,6 +340,44 @@ await Test("A disconnected GPU that Windows keeps blocks deletion of its package
     Console.WriteLine($"  system files with package evidence: {(inv.SystemFiles??[]).Count} (setup log {(inv.SystemFiles??[]).Count(f=>f.Source.Length>0)}); by author: "+string.Join(", ",(inv.SystemFiles??[]).GroupBy(f=>Vendors.FromCompany(f.Company)).Select(g=>g.Key+"="+g.Count())));
     foreach(var r in inv.Registrations??[])Console.WriteLine($"  khronos {r.Key[(r.Key.IndexOf("Khronos")+8)..]} exists={r.Exists} company={r.Company} {Path.GetFileName(r.Name)}");
     Assert(inv.Devices.Count>20&&inv.Services.Count>50&&inv.Processes.Count>10);
+});
+var previewVendor=args.FirstOrDefault(a=>a.StartsWith("--cleanup-preview="))?[18..];
+if(previewVendor is not null) await Test("Real deep-cleanup preview with the "+previewVendor+" card treated as removed READ ONLY",async()=>{
+    var vendor=Enum.Parse<Vendor>(previewVendor,true);
+    var inv=await new WindowsCleanupPlatform().InventoryAsync();
+    Assert(inv.Admin&&inv.Complete,"Run elevated: the preview needs the complete inventory.");
+    // The card and its functions (HDMI audio, software components) leave with it; root-enumerated virtual devices stay present.
+    var removed=inv with {Devices=inv.Devices.Select(d=>d.Present&&!d.Id.StartsWith(@"ROOT\",StringComparison.OrdinalIgnoreCase)&&(DeepCleanPlanner.InDomain(vendor,d.Id)||d.HardwareIds.Any(id=>DeepCleanPlanner.InDomain(vendor,id)))?d with {Present=false}:d).ToArray()};
+    Console.WriteLine("Connected after the simulated removal: "+string.Join(",",DeepCleanPlanner.PresentGpuVendors(removed)));
+    var plan=DeepCleanPlanner.Create(removed,[vendor]);
+    foreach(var group in plan.Items.GroupBy(i=>i.Kind)){Console.WriteLine($"  {group.Key}: {group.Count()}");foreach(var i in group)Console.WriteLine($"    {(i.Selected?"[x]":"[ ]")} {i.Label} · {i.Reason} · {i.Bytes/1048576} MB");}
+    foreach(var k in plan.Kept)Console.WriteLine($"  kept {k.Kind} {k.Label} · {k.Reason}");
+    foreach(var note in plan.Notes)Console.WriteLine("  note "+note);
+    var automatic=plan.Items.Count(i=>i.Selected&&i.Kind!=RemnantKind.Uninstaller);
+    Console.WriteLine($"Preview: {plan.Items.Count} items, {automatic} removed automatically after a card change ({plan.Bytes/1048576} MB), {plan.Items.Count(i=>i.Kind==RemnantKind.Uninstaller)} programs for review, {plan.Kept.Count} kept. Nothing was changed.");
+    Assert(plan.Items.Count>0);
+});
+var taskExe=args.FirstOrDefault(a=>a.StartsWith("--logon-task-lab="))?[17..];
+if(taskExe is not null) await Test("Real sign-in task registration, protected copy and removal",async()=>{
+    const string name=@"\KraicDev\Swap lab task";
+    Assert(!LogonTask.Exists(name),"A lab task already exists.");
+    try
+    {
+        Assert(await LogonTask.RegisterAsync(name,taskExe,"--readonly"),"Task Scheduler rejected the task.");
+        Assert(LogonTask.Exists(name));
+        var query=await WindowsPlatform.RunAsync(Path.Combine(Environment.SystemDirectory,"schtasks.exe"),["/Query","/TN",name,"/XML"],60);
+        Assert(query.Code==0&&query.Output.Contains("HighestAvailable")&&query.Output.Contains("InteractiveToken")&&query.Output.Contains(@"\Swap\Continuation\Swap.exe"),"Registered task differs.");
+        var cached=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"Swap","Continuation","Swap.exe");
+        Assert(await WindowsPlatform.HashFileAsync(cached)==await WindowsPlatform.HashFileAsync(taskExe),"Protected copy differs.");
+        var rules=new FileInfo(cached).GetAccessControl().GetAccessRules(true,true,typeof(System.Security.Principal.SecurityIdentifier)).Cast<System.Security.AccessControl.FileSystemAccessRule>().ToArray();
+        var users=new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinUsersSid,null);
+        var write=System.Security.AccessControl.FileSystemRights.WriteData|System.Security.AccessControl.FileSystemRights.AppendData|System.Security.AccessControl.FileSystemRights.Delete|System.Security.AccessControl.FileSystemRights.ChangePermissions|System.Security.AccessControl.FileSystemRights.TakeOwnership;
+        Assert(!rules.Any(r=>r.AccessControlType==System.Security.AccessControl.AccessControlType.Allow&&(r.FileSystemRights&write)!=0&&!(r.IdentityReference.Equals(new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid,null))||r.IdentityReference.Equals(new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.LocalSystemSid,null)))),"Someone besides administrators can change the protected copy.");
+        Assert(rules.Any(r=>r.IdentityReference.Equals(users)),"Users cannot read the protected copy.");
+        Console.WriteLine("  task registered for "+System.Security.Principal.WindowsIdentity.GetCurrent().Name+"; protected copy "+cached);
+    }
+    finally {LogonTask.Delete(name);}
+    Assert(!LogonTask.Exists(name),"The lab task was not removed.");
 });
 if(args.Contains("--graphics-readonly")) await Test("Real graphics, PCIe link and display modes READ ONLY",async()=>{
     var d=await GraphicsInspector.ReadAsync();
