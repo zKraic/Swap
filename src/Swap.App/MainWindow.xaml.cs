@@ -61,14 +61,14 @@ public partial class MainWindow : Window
         busy = true; RunButton.IsEnabled = DownloadButton.IsEnabled = DemoButton.IsEnabled = PrepareButton.IsEnabled = false;
         SwapPrimaryButton.IsEnabled = SwapSecondaryButton.IsEnabled = SwapCancelButton.IsEnabled = false;
         LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = DeepCleanBox.IsEnabled = false;
-        Progress.Visibility = Visibility.Visible; Details.IsExpanded = false;
+        ShowProgress(null); Details.IsExpanded = false;
         try { await action(); }
         catch (OperationCanceledException) { Status.Text = T("cancelled"); }
         catch (Exception e) { Status.Text = Localization.Translations.Keys.Any(k => T(k) == e.Message) ? e.Message : T("failed"); Log(e.ToString()); Details.IsExpanded = true; }
         finally
         {
             busy = false; LanguageBox.IsEnabled = ThemeBox.IsEnabled = SourceBox.IsEnabled = GpuBox.IsEnabled = DeepCleanBox.IsEnabled = true;
-            DemoButton.IsEnabled = true; Progress.Visibility = CancelButton.Visibility = Visibility.Collapsed; UpdateButtons();
+            DemoButton.IsEnabled = true; Progress.Visibility = ProgressText.Visibility = CancelButton.Visibility = Visibility.Collapsed; UpdateButtons();
         }
     }
     private void Log(string text)
@@ -80,8 +80,27 @@ public partial class MainWindow : Window
         int index = phase switch { "search" => 0, "download" => 1, "backup" => 2, "install" => 3, _ => 4 };
         var steps = new[] { Step1, Step2, Step3, Step4, Step5 };
         for (int i = 0; i < steps.Length; i++) { steps[i].Text = i < index ? "✓" : (i + 1).ToString("00"); steps[i].SetResourceReference(TextBlock.ForegroundProperty, i == index ? "Accent" : i < index ? "Good" : "Muted"); }
-        Status.Text = T(phase == "cleanup" ? "verify" : phase) + "…";
+        ShowProgress(new[] { 5, 20, 40, 60, 85 }[index], string.Format(T("stepOf"), index + 1, steps.Length) + " · " + T(phase == "cleanup" ? "verify" : phase) + "…");
     }
+    // A determinate bar with its percentage when the step is known; the sliding bar only while nothing can be measured.
+    private void ShowProgress(double? percent, string? text = null)
+    {
+        Progress.Visibility = Visibility.Visible;
+        if (percent is double value)
+        {
+            value = Math.Clamp(value, 0, 100);
+            Progress.IsIndeterminate = false; Progress.Value = value;
+            ProgressText.Text = value.ToString("0", System.Globalization.CultureInfo.CurrentCulture) + " %"; ProgressText.Visibility = Visibility.Visible;
+        }
+        else { Progress.IsIndeterminate = true; ProgressText.Visibility = Visibility.Collapsed; }
+        if (text is not null) Status.Text = text;
+    }
+    // Deep cleanup reports each item: the bar follows the items, the status names the current one.
+    private void CleanupStage(string phase) => ShowProgress(phase == "backup" ? 2 : phase == "verify" ? 97 : null,
+        T(phase == "backup" ? "cleanupBackupStage" : phase == "verify" ? "cleanupVerifyStage" : "cleanupTitle") + "…");
+    private int cleanupReports; private string? progressCapture;
+    private void CleanupProgress(int done, int total, string label) => Dispatcher.Invoke(() => { cleanupReports++; if (progressCapture is not null && done == total / 2) { var path = progressCapture; progressCapture = null; Dispatcher.InvokeAsync(() => Capture(path), System.Windows.Threading.DispatcherPriority.Render); }
+        ShowProgress(total == 0 ? null : 3 + 94.0 * done / total, string.Format(T("cleanupProgress"), Math.Min(done + 1, total), total) + (label.Length > 0 ? " · " + label : "")); });
     private void FinishStages(bool installed = true)
     {
         var steps = new[] { Step1, Step2, Step3, Step4, Step5 };

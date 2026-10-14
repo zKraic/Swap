@@ -156,6 +156,9 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
         var windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         var candidates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var relative in packages.SelectMany(p => p.SystemFiles ?? [])) candidates.TryAdd(Path.GetFullPath(Path.Combine(windows, relative)), "");
+        // Known modules a vendor's own installer (not its INF) copies into System32/SysWOW64; the planner still requires the brand as author.
+        foreach (var module in VendorProfiles.All.SelectMany(p => p.SystemModules ?? []))
+            foreach (var folder in new[] { "System32", "SysWOW64" }) candidates.TryAdd(Path.GetFullPath(Path.Combine(windows, folder, module)), "");
         try
         {
             foreach (var (target, source) in SetupLog.Copies(SetupLogLines(windows)))
@@ -459,6 +462,7 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
     {
         try { using var key = OpenPath(path); return key is not null; } catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { return false; }
     }).ToArray();
+    public Task<IReadOnlyList<ProcessEntry>> RunningProcessesAsync() => Task.Run<IReadOnlyList<ProcessEntry>>(Processes);
     private static ProcessEntry[] Processes()
     {
         var result = new List<ProcessEntry>();
@@ -513,9 +517,93 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
         var result = await Run("sc.exe", "delete", name);
         return result.Code == 1060 ? new(0, "Service no longer exists.") : result;
     }
-    public async Task<CommandResult> ExportRegistryAsync(string key, string file) => RegistryPath().IsMatch(key) ? await Run("reg.exe", "export", key, file, "/y", "/reg:64") : Invalid("registry key");
-    public async Task<CommandResult> ImportRegistryAsync(string file) => File.Exists(file) && file.EndsWith(".reg", StringComparison.OrdinalIgnoreCase) ? await Run("reg.exe", "import", file, "/reg:64") : Invalid("registry backup");
-    public async Task<CommandResult> DeleteRegistryAsync(string key) => RegistryPath().IsMatch(key) ? await Run("reg.exe", "delete", key, "/f", "/reg:64") : Invalid("registry key");
+    public async Task<CommandResult> ExportRegistryAsync(string key, string file)
+    {
+        if (!RegistryPath().IsMatch(key)) return Invalid("registry key");
+        var export = await Run("reg.exe", "export", key, file, "/y", "/reg:64");
+        // A protected key is also saved as a hive: values, subkeys and its TrustedInstaller permissions come back exactly on undo.
+        return export.Success && ProtectedKey(key) ? SaveHive(key, file + ".hive") is { Success: false } hive ? hive : export : export;
+    }
+    public async Task<CommandResult> ImportRegistryAsync(string file)
+    {
+        if (!File.Exists(file) || !file.EndsWith(".reg", StringComparison.OrdinalIgnoreCase)) return Invalid("registry backup");
+        if (File.Exists(file + ".hive") && FirstKey(file) is { } key && ProtectedKey(key)) return RestoreHive(key, file + ".hive");
+        return await Run("reg.exe", "import", file, "/reg:64");
+    }
+    public async Task<CommandResult> DeleteRegistryAsync(string key)
+    {
+        if (!RegistryPath().IsMatch(key)) return Invalid("registry key");
+        return ProtectedKey(key) ? DeleteProtected(key) : await Run("reg.exe", "delete", key, "/f", "/reg:64");
+    }
+
+    // ---- PnP lockdown entries ----
+    // Windows 11 reserves PnpLockdownFiles for TrustedInstaller: administrators can read an entry but not delete it. Only keys there are
+    // opened with the backup/restore privileges (the key is never re-permissioned): saved as a hive, deleted, and restored from that hive.
+    internal static bool ProtectedKey(string key) => key.StartsWith(@"HKLM\" + Lockdown + @"\", StringComparison.OrdinalIgnoreCase) && key.Length > Lockdown.Length + 6;
+    private static readonly UIntPtr LocalMachine = unchecked((UIntPtr)0x80000002u);
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "RegCreateKeyExW")]
+    private static extern int RegCreateKeyEx(UIntPtr key, string subKey, int reserved, string? className, int options, int access, IntPtr security, out UIntPtr result, out int disposition);
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "RegOpenKeyExW")]
+    private static extern int RegOpenKeyEx(UIntPtr key, string subKey, int options, int access, out UIntPtr result);
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "RegSaveKeyExW")] private static extern int RegSaveKeyEx(UIntPtr key, string file, IntPtr security, int format);
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "RegRestoreKeyW")] private static extern int RegRestoreKey(UIntPtr key, string file, int flags);
+    [DllImport("advapi32.dll")] private static extern int RegCloseKey(UIntPtr key);
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "RegEnumKeyExW")]
+    private static extern int RegEnumKeyEx(UIntPtr key, int index, StringBuilder name, ref int length, IntPtr reserved, IntPtr className, IntPtr classLength, IntPtr lastWrite);
+    [DllImport("ntdll.dll")] private static extern int NtDeleteKey(UIntPtr key);
+    private const int BackupRestore = 0x4, Wow64Key = 0x0100;
+    private static string SubKey(string key) => key[5..];
+    private static bool Privileged() => EnablePrivilege("SeRestorePrivilege") && EnablePrivilege("SeBackupPrivilege");
+    // RegCreateKeyEx documents that REG_OPTION_BACKUP_RESTORE grants the backup/restore access (read, write, delete) from the
+    // privileges alone. A read-only probe first makes sure an existing key is opened, never a new one created by mistake.
+    private static int OpenPrivileged(string key, bool create, out UIntPtr handle)
+    {
+        handle = UIntPtr.Zero;
+        if (!create)
+        {
+            var probe = RegOpenKeyEx(LocalMachine, SubKey(key), 0, 0x20019 | Wow64Key, out var readable);
+            if (probe == 0) RegCloseKey(readable); else if (probe != 5) return probe;
+        }
+        return RegCreateKeyEx(LocalMachine, SubKey(key), 0, null, BackupRestore, Wow64Key, IntPtr.Zero, out handle, out _);
+    }
+    private static CommandResult SaveHive(string key, string file)
+    {
+        if (!Privileged()) return new(5, "accessDenied");
+        if (File.Exists(file)) File.Delete(file);
+        if (OpenPrivileged(key, false, out var handle) is var open && open != 0) return new(open, "hiveOpenFailed");
+        try { var saved = RegSaveKeyEx(handle, file, IntPtr.Zero, 2); return saved == 0 ? new(0, "hiveSaved") : new(saved, "hiveSaveFailed"); }
+        finally { RegCloseKey(handle); }
+    }
+    private static CommandResult DeleteProtected(string key)
+    {
+        if (!Privileged()) return new(5, "accessDenied");
+        if (OpenPrivileged(key, false, out var handle) is var open && open != 0)
+            return open == 2 ? new(0, "alreadyRemoved") : new(open, "openFailed");
+        try
+        {
+            // Entries are leaf keys; any child is removed first, the same way.
+            var children = new List<string>(); var name = new StringBuilder(512);
+            for (int i = 0; ; i++) { int length = name.Capacity; name.Clear(); if (RegEnumKeyEx(handle, i, name, ref length, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero) != 0) break; children.Add(name.ToString()); }
+            foreach (var child in children) if (DeleteProtected(key + "\\" + child) is { Success: false } failed) return failed;
+            var status = NtDeleteKey(handle);
+            return status == 0 ? new(0, "removed privileged") : new(5, "deleteFailed 0x" + status.ToString("X8"));
+        }
+        finally { RegCloseKey(handle); }
+    }
+    private static CommandResult RestoreHive(string key, string file)
+    {
+        if (!Privileged()) return new(5, "accessDenied");
+        if (OpenPrivileged(key, true, out var handle) is var created && created != 0) return new(created, "hiveCreateFailed");
+        try { var restored = RegRestoreKey(handle, file, 8); return restored == 0 ? new(0, "restored privileged") : new(restored, "hiveRestoreFailed"); }
+        finally { RegCloseKey(handle); }
+    }
+    // The first key of a reg.exe export, as HKLM\… ; the backup lives in the administrator-only folder.
+    private static string? FirstKey(string file)
+    {
+        foreach (var line in File.ReadLines(file))
+            if (line.StartsWith("[HKEY_LOCAL_MACHINE\\", StringComparison.OrdinalIgnoreCase) && line.EndsWith(']')) return "HKLM\\" + line[20..^1];
+        return null;
+    }
     public async Task<CommandResult> ExportTaskAsync(string path, string file)
     {
         if (!TaskPath().IsMatch(path)) return Invalid("task");
@@ -590,9 +678,9 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
         var entry = FindLockdown(windows, path); var note = "";
         if (entry is not null)
         {
-            var file = Path.Combine(Path.GetDirectoryName(destination)!, "lockdown.reg");
-            var export = await Run("reg.exe", "export", @"HKLM\" + Lockdown + @"\" + entry, file, "/y", "/reg:64");
-            note = export.Success && File.Exists(file) && (await Run("reg.exe", "delete", @"HKLM\" + Lockdown + @"\" + entry, "/f", "/reg:64")).Success ? " lockdownSaved" : " lockdownKept";
+            var file = Path.Combine(Path.GetDirectoryName(destination)!, "lockdown.reg"); var key = @"HKLM\" + Lockdown + @"\" + entry;
+            var export = await ExportRegistryAsync(key, file);
+            note = export.Success && File.Exists(file) && (await DeleteRegistryAsync(key)).Success ? " lockdownSaved" : " lockdownKept";
         }
         return new(0, moved.Output + note);
     }
@@ -602,7 +690,7 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
         if (DeepCleanPlanner.SystemRelative(windows, origin) is null || File.Exists(origin) || !File.Exists(backup)) return Invalid("file backup");
         var moved = MoveFile(backup, origin);
         var lockdown = Path.Combine(Path.GetDirectoryName(backup)!, "lockdown.reg");
-        if (moved.Success && File.Exists(lockdown)) await Run("reg.exe", "import", lockdown, "/reg:64");
+        if (moved.Success && File.Exists(lockdown)) await ImportRegistryAsync(lockdown);
         return moved;
     }
     // Lockdown entries are subkeys named after the file, for example "%SystemRoot%/System32/name.dll".

@@ -36,6 +36,8 @@ public interface ICleanupPlatform
     Task<CommandResult> ExportValueAsync(string key, string name, string file);
     Task<CommandResult> DeleteValueAsync(string key, string name);
     Task<CommandResult> RestoreValueAsync(string file);
+    // Processes running right now, for vendor programs restarted after the plan was made.
+    Task<IReadOnlyList<ProcessEntry>> RunningProcessesAsync() => Task.FromResult<IReadOnlyList<ProcessEntry>>([]);
 }
 
 public sealed record CleanupResult(string Key, RemnantKind Kind, Vendor Vendor, string Target, string Label, string Status, string Backup, string Message, long Bytes);
@@ -55,7 +57,7 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
 
     public async Task<CleanupOutcome> RunAsync(DeepCleanPlan plan, IReadOnlySet<string> selected, string session, string secureRoot,
-        Action<string> log, CancellationToken token = default, Action<string>? stage = null)
+        Action<string> log, CancellationToken token = default, Action<string>? stage = null, Action<int, int, string>? progress = null)
     {
         var name = Path.GetFileName(Path.GetFullPath(session).TrimEnd('\\'));
         if (!ValidSession(name)) throw new IOException("Invalid cleanup session name.");
@@ -101,9 +103,11 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
             var failedDevices = new HashSet<string>(StringComparer.OrdinalIgnoreCase); int index = 0;
             // Stop services before ending processes: a killed service process could be restarted by its recovery policy.
             foreach (var service in chosen.Where(i => i.Kind == RemnantKind.Service)) await platform.StopServiceAsync(service.Target);
-            foreach (var item in chosen.OrderBy(i => Array.IndexOf(order, i.Kind)))
+            var ordered = chosen.OrderBy(i => Array.IndexOf(order, i.Kind)).ToArray(); int position = 0;
+            foreach (var item in ordered)
             {
                 token.ThrowIfCancellationRequested();
+                progress?.Invoke(position++, ordered.Length, item.Label);
                 var backup = Path.Combine(secure, "items", (index++).ToString("D4"));
                 try
                 {
@@ -178,14 +182,17 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                             { Record(item, "skipped", "", "otherVolume"); break; }
                             Directory.CreateDirectory(backup);
                             Log("Moviendo a cuarentena " + item.Target);
-                            try { Directory.Move(item.Target, target); }
-                            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Record(item, "failed", "", "inUse " + e.Message); break; }
+                            var (moved, locked) = await MoveFolderAsync(item.Target, target, roots.Append(secure).ToArray(), Log, token);
+                            if (moved == 0 && locked.Count > 0) { Record(item, "failed", "", "inUse " + string.Join(", ", locked.Take(8))); break; }
                             await File.WriteAllTextAsync(Path.Combine(backup, "origin.txt"), item.Target, token);
                             // The move already happened: a sealing problem must not hide the folder from undo.
                             string seal = "";
                             try { await BackupIntegrity.SealAsync(target, token, false); }
                             catch (IOException e) { seal = "unsealed " + e.Message; }
-                            Record(item, "done", Rel(secure, target), seal, item.Bytes); break;
+                            // Whatever stayed open is listed; undo puts the moved part back next to it.
+                            if (locked.Count > 0) Record(item, "partial", Rel(secure, target), ("inUse " + string.Join(", ", locked.Take(8)) + " " + seal).Trim(), 0);
+                            else Record(item, "done", Rel(secure, target), seal, item.Bytes);
+                            break;
                         }
                         case RemnantKind.File:
                         {
@@ -279,7 +286,7 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
         var done = JsonSerializer.Deserialize<CleanupResult[]>(await File.ReadAllTextAsync(manifest, token)) ?? [];
         var results = new List<CleanupResult>(); bool restart = false;
         void Log(string text) { File.AppendAllText(Path.Combine(session, "journal.jsonl"), JsonSerializer.Serialize(new { time = DateTimeOffset.UtcNow, text = "undo: " + text }) + "\n"); log(text); }
-        foreach (var item in done.Where(r => r.Status is "done").Reverse())
+        foreach (var item in done.Where(r => r.Status is "done" || r.Status == "partial" && r.Kind == RemnantKind.Folder).Reverse())
         {
             token.ThrowIfCancellationRequested();
             // Backup locations are derived from the protected folder; never from paths a user could rewrite.
@@ -305,8 +312,21 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
                     case RemnantKind.Folder:
                     {
                         var origin = (await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(backup)!, "origin.txt"), token)).Trim();
-                        if (!SafeFolder(origin) || Directory.Exists(origin) || File.Exists(origin)) { results.Add(item with { Status = "failed", Message = "destinationExists" }); continue; }
-                        if (File.Exists(Path.Combine(backup, BackupIntegrity.ManifestName))) await BackupIntegrity.VerifyAsync(backup, token, false);
+                        // A partial move left the open entries in place: the moved ones go back beside them, never over them.
+                        bool merge = item.Status == "partial" && Directory.Exists(origin);
+                        if (!SafeFolder(origin) || !merge && (Directory.Exists(origin) || File.Exists(origin))) { results.Add(item with { Status = "failed", Message = "destinationExists" }); continue; }
+                        var sealPath = Path.Combine(backup, BackupIntegrity.ManifestName);
+                        if (File.Exists(sealPath)) await BackupIntegrity.VerifyAsync(backup, token, false);
+                        // The seal belongs to the quarantine, not to the vendor folder that comes back.
+                        if (File.Exists(sealPath)) File.Delete(sealPath);
+                        if (merge)
+                        {
+                            var entries = Directory.EnumerateFileSystemEntries(backup).ToArray();
+                            if (entries.Any(e => Path.Exists(Path.Combine(origin, Path.GetFileName(e))))) { results.Add(item with { Status = "failed", Message = "destinationExists" }); continue; }
+                            foreach (var entry in entries)
+                                if ((File.GetAttributes(entry) & FileAttributes.Directory) != 0) Directory.Move(entry, Path.Combine(origin, Path.GetFileName(entry))); else File.Move(entry, Path.Combine(origin, Path.GetFileName(entry)));
+                            r = new(0, "restored beside the entries that stayed " + origin); break;
+                        }
                         Directory.CreateDirectory(Path.GetDirectoryName(origin)!); Directory.Move(backup, origin);
                         r = new(0, "restored " + origin); break;
                     }
@@ -334,6 +354,37 @@ public sealed partial class DeepCleanEngine(ICleanupPlatform platform)
     }
 
     private static string Rel(string root, string path) => Path.GetRelativePath(root, path);
+
+    // A vendor program restarted after the plan (a service watchdog, a tray helper) keeps logs open and blocks the move.
+    // Stop what runs from the folders being removed or from this quarantine, wait, and try again; if something is still
+    // open, move every entry that can move and report the rest. Returns how many entries moved and which ones stayed.
+    private async Task<(int Moved, List<string> Locked)> MoveFolderAsync(string source, string target, string[] roots, Action<string> log, CancellationToken token)
+    {
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            try { Directory.Move(source, target); return (1, []); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { if (attempt == 2) log("inUse " + source + " · " + e.Message); }
+            foreach (var process in await platform.RunningProcessesAsync())
+                if (process.Path.Length > 0 && (DeepCleanPlanner.Within(process.Path, source) || roots.Any(r => DeepCleanPlanner.Within(process.Path, r))))
+                    log((await platform.StopProcessAsync(process.Id, process.Path)).Output + " · " + process.Path);
+            await Task.Delay(TimeSpan.FromSeconds(attempt + 1.5), token);
+        }
+        int moved = 0; var locked = new List<string>();
+        Directory.CreateDirectory(target);
+        foreach (var entry in Directory.EnumerateFileSystemEntries(source).ToArray())
+        {
+            var destination = Path.Combine(target, Path.GetFileName(entry));
+            try
+            {
+                if ((File.GetAttributes(entry) & FileAttributes.Directory) != 0) Directory.Move(entry, destination); else File.Move(entry, destination);
+                moved++;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { locked.Add(Path.GetFileName(entry)); }
+        }
+        if (locked.Count == 0) { try { Directory.Delete(source); } catch (IOException) { locked.Add("."); } }
+        if (moved == 0 && Directory.Exists(target) && !Directory.EnumerateFileSystemEntries(target).Any()) Directory.Delete(target);
+        return (moved, locked);
+    }
 
     // Refuse drive roots, Windows, profile roots and links. Targets come from fixed vendor locations.
     public static bool SafeFolder(string path)

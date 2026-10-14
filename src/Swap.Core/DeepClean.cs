@@ -45,7 +45,8 @@ public sealed record DeepCleanPlan(string MachineId, IReadOnlyList<Vendor> Vendo
 
 // RuntimeMarkers: file names of the brand's Vulkan drivers and OpenCL vendors, used only for registrations whose file is already gone.
 public sealed record VendorProfile(Vendor Vendor, string[] IdPrefixes, string[] Services, FolderSpec[] Folders, string[] RegistryKeys,
-    string[] Appx, string[] AppNames, string[] AppExclusions, string[] PathMarkers, string[] Publishers, string[]? RuntimeMarkers = null);
+    string[] Appx, string[] AppNames, string[] AppExclusions, string[] PathMarkers, string[] Publishers, string[]? RuntimeMarkers = null,
+    string[]? SystemModules = null);
 
 public static class VendorProfiles
 {
@@ -68,7 +69,9 @@ public static class VendorProfiles
          "NVIDIA 3D Vision", "NVIDIA Install Application", "NVIDIA Update", "NVIDIA Virtual Audio", "NVIDIA Telemetry", "NVIDIA Container", "NVIDIA ShadowPlay",
          "NVIDIA Ansel", "NVIDIA Backend", "NVIDIA Node.js", "NVIDIA Broadcast", "NVIDIA Display Container", "NVIDIA Platform Controllers"],
         ["PhysX", "GeForce NOW", "CUDA", "Nsight", "Omniverse"],
-        [@"\NVIDIA Corporation\", @"\NVIDIA\"], ["NVIDIA Corporation", "NVIDIA"], ["nv-vk", "nvoglv", "nvopencl", "nvcuda"]);
+        [@"\NVIDIA Corporation\", @"\NVIDIA\"], ["NVIDIA Corporation", "NVIDIA"], ["nv-vk", "nvoglv", "nvopencl", "nvcuda"],
+        // NVIDIA App capture proxy and Virtual Audio helpers, copied by the NVIDIA installer rather than by a driver INF.
+        ["nvspcap64.dll", "nvspcap.dll", "nvaudcap64v.dll", "nvaudcap32v.dll"]);
 
     public static readonly VendorProfile Amd = new(Vendor.Amd,
         [@"PCI\VEN_1002&", @"HDAUDIO\FUNC_01&VEN_1002&", @"SWC\VEN_1002&"],
@@ -381,10 +384,11 @@ public static partial class DeepCleanPlanner
                 var author = Vendors.FromCompany(file.Company);
                 bool inf = listed.Contains(relative);
                 bool log = !inf && file.Source.Length > 0 && !stores.Contains(file.Source) && author == vendor;
-                if (!inf && !log) continue;
+                bool module = !inf && !log && author == vendor && profile.SystemModules?.Contains(Path.GetFileName(file.Path), StringComparer.OrdinalIgnoreCase) == true;
+                if (!inf && !log && !module) continue;
                 string? keep = SharedRuntime(relative) ? "fileSharedRuntime" : shared.Contains(relative) ? "fileShared" : file.Company.Length > 0 && author != vendor ? "fileOtherCompany" : null;
                 if (keep is not null) { kept.Add(new("file:" + file.Path, RemnantKind.File, vendor, file.Path, relative, keep, false, file.Bytes)); continue; }
-                items.Add(new("file:" + file.Path, RemnantKind.File, vendor, file.Path, relative, inf ? "fileInf" : "fileLog", select, file.Bytes, file.Source));
+                items.Add(new("file:" + file.Path, RemnantKind.File, vendor, file.Path, relative, inf ? "fileInf" : module ? "fileModule" : "fileLog", select, file.Bytes, file.Source));
                 files.Add(file.Path);
             }
             foreach (var process in inventory.Processes.Where(p => files.Contains(p.Path)))

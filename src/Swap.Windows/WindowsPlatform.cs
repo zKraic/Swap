@@ -9,6 +9,12 @@ namespace Swap.Windows;
 
 public sealed partial class WindowsPlatform : IPlatform
 {
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")] private static extern int GetOEMCP();
+    private static readonly Lazy<Encoding> Oem = new(() =>
+    {
+        try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); return Encoding.GetEncoding(GetOEMCP()); }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException) { return Encoding.Default; }
+    });
     internal static string SystemExe(string name) => Path.Combine(Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Sysnative") : Environment.GetFolderPath(Environment.SpecialFolder.System), name);
     public static async Task<CommandResult> RunAsync(string exe, IEnumerable<string> args, int timeoutSeconds = 180)
     {
@@ -22,6 +28,8 @@ public sealed partial class WindowsPlatform : IPlatform
             // The scripts write UTF-8; reading it with the system code page turned "·" and accented device names into "Â·".
             info.StandardOutputEncoding = info.StandardErrorEncoding = new UTF8Encoding(false);
         }
+        // Console tools (pnputil, reg, sc, schtasks) write in the OEM code page: "La operación", not "La operaci¢n".
+        else info.StandardOutputEncoding = info.StandardErrorEncoding = Oem.Value;
         foreach (var arg in args) info.ArgumentList.Add(arg);
         using var process = Process.Start(info) ?? throw new IOException("No se pudo iniciar " + exe);
         var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
@@ -51,6 +59,26 @@ public sealed partial class WindowsPlatform : IPlatform
     }
     // TeamViewer keeps its service and tray processes running while idle; TeamViewer_Desktop runs only during an incoming session.
     // The other tools give no such signal and still block while they run.
+    // The manufacturer's control panel (AMD Software, NVIDIA App, Intel Graphics Software) as Programs lists it. Read-only.
+    public static bool VendorSoftwareInstalled(Vendor vendor)
+    {
+        string[] names = vendor switch { Vendor.Amd => ["AMD Software"], Vendor.Nvidia => ["NVIDIA App", "GeForce Experience"], Vendor.Intel => ["Intel® Graphics Software", "Intel Graphics Software", "Intel® Arc", "Intel Arc Control"], _ => [] };
+        foreach (var (hive, view) in new[] { (Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry64), (Microsoft.Win32.RegistryHive.LocalMachine, Microsoft.Win32.RegistryView.Registry32), (Microsoft.Win32.RegistryHive.CurrentUser, Microsoft.Win32.RegistryView.Registry64) })
+        {
+            try
+            {
+                using var root = Microsoft.Win32.RegistryKey.OpenBaseKey(hive, view);
+                using var uninstall = root.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"); if (uninstall is null) continue;
+                foreach (var key in uninstall.GetSubKeyNames())
+                {
+                    using var app = uninstall.OpenSubKey(key);
+                    if (app?.GetValue("DisplayName") is string display && names.Any(n => display.StartsWith(n, StringComparison.OrdinalIgnoreCase))) return true;
+                }
+            }
+            catch (Exception e) when (e is IOException or System.Security.SecurityException or UnauthorizedAccessException) { }
+        }
+        return false;
+    }
     public static bool IsKnownRemoteTool(string name) => name.Equals("TeamViewer_Desktop", StringComparison.OrdinalIgnoreCase) ||
         new[] { "AnyDesk", "rustdesk", "remoting_host", "parsecd" }.Contains(name, StringComparer.OrdinalIgnoreCase);
     public async Task<Snapshot> ScanAsync()

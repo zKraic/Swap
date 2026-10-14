@@ -280,6 +280,34 @@ static class DeepCleanTests
             Assert(after.Services.Any(s => s.Name == "nvlddmkm") && after.Packages.Any(p => p.Inf == "oem43.inf") && after.Tasks.Count == 1 && after.RegistryKeys.Count == 2);
             Assert(undo.Results.Any(r => r.Kind == RemnantKind.Device && r.Status == "skipped") && undo.Results.Any(r => r.Kind == RemnantKind.Appx && r.Status == "skipped"));
         });
+        await test("A vendor program restarted after the plan is stopped and the folder still moves", async () =>
+        {
+            var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")); var secure = Secure(sandbox);
+            var app = Path.Combine(sandbox, "System", "Program Files", "NVIDIA Corporation", "NVIDIA App");
+            var plan = DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]);
+            platform.Holder = new FileStream(Path.Combine(app, "restarted.log"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+            platform.HolderImage = Path.Combine(app, "restarted.exe");
+            var outcome = await new DeepCleanEngine(platform).RunAsync(plan, All(plan), Session(sandbox), secure, _ => { });
+            Assert(platform.Calls.Contains("stop:" + DemoCleanupPlatform.RestartedId) && platform.Holder is null, "restarted program not stopped");
+            Assert(!Directory.Exists(app) && outcome.Results.Single(r => r.Target == app).Status == "done", string.Join(" | ", outcome.Results.Where(r => r.Target == app).Select(r => r.Status + " " + r.Message)));
+        });
+        await test("A file that stays open leaves only itself behind; undo puts the rest back beside it", async () =>
+        {
+            var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System")); var secure = Secure(sandbox);
+            var app = Path.Combine(sandbox, "System", "Program Files", "NVIDIA Corporation", "NVIDIA App");
+            var plan = DeepCleanPlanner.Create(await platform.InventoryAsync(), [Vendor.Nvidia]); var session = Session(sandbox);
+            Directory.CreateDirectory(Path.Combine(app, "Logs"));
+            using (var open = new FileStream(Path.Combine(app, "Logs", "busy.log"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read))
+            {
+                var outcome = await new DeepCleanEngine(platform).RunAsync(plan, All(plan), session, secure, _ => { });
+                var result = outcome.Results.Single(r => r.Target == app);
+                Assert(result.Status == "partial" && result.Message.Contains("Logs"), result.Status + " " + result.Message);
+                Assert(Directory.Exists(Path.Combine(app, "Logs")) && !Directory.Exists(Path.Combine(app, "CEF")), "only the open entry may stay");
+            }
+            var undo = await new DeepCleanEngine(platform).UndoAsync(session, secure, _ => { });
+            Assert(undo.Results.Any(r => r.Target == app && r.Status == "restored"), string.Join(" | ", undo.Results.Where(r => r.Target == app).Select(r => r.Status + " " + r.Message)));
+            Assert(Directory.Exists(Path.Combine(app, "CEF")) && Directory.Exists(Path.Combine(app, "Logs")) && !File.Exists(Path.Combine(app, BackupIntegrity.ManifestName)));
+        });
         await test("Unselected items are never touched", async () =>
         {
             var sandbox = Sandbox(); var platform = new DemoCleanupPlatform(Path.Combine(sandbox, "System"));
@@ -524,6 +552,20 @@ static class DeepCleanTests
             Assert(Vendors.FromCompany("Advanced Micro Devices, Inc.") == Vendor.Amd && Vendors.FromCompany("ATI Technologies Inc.") == Vendor.Amd && Vendors.FromCompany("NVIDIA Corporation") == Vendor.Nvidia);
             Assert(Vendors.FromCompany("Intel(R) Corporation") == Vendor.Intel && Vendors.FromCompany("LunarG, Inc.") == Vendor.Unknown && Vendors.FromCompany("Not NVIDIA") == Vendor.Unknown && Vendors.FromCompany("") == Vendor.Unknown);
             return Done();
+        });
+        await test("Known vendor modules copied by the vendor installer go only with the brand as author", async () =>
+        {
+            var platform = new DemoCleanupPlatform(Sandbox()); var inventory = await platform.InventoryAsync();
+            string Path32(string name) => Path.Combine(platform.WindowsRoot, "System32", name);
+            inventory = inventory with { SystemFiles = [.. inventory.SystemFiles!,
+                new(Path32("nvspcap64.dll"), 1000, "NVIDIA Corporation"), new(Path.Combine(platform.WindowsRoot, "SysWOW64", "nvaudcap32v.dll"), 1000, "NVIDIA Corporation"),
+                new(Path32("nvaudcap64v.dll"), 1000, "Contoso Audio"), new(Path32("nvagent.dll"), 1000, "NVIDIA Corporation")] };
+            var plan = DeepCleanPlanner.Create(inventory, [Vendor.Nvidia]);
+            Assert(plan.Items.Any(i => i.Target == Path32("nvspcap64.dll") && i.Reason == "fileModule" && i.Selected));
+            Assert(plan.Items.Any(i => i.Target.EndsWith(@"SysWOW64\nvaudcap32v.dll") && i.Reason == "fileModule"));
+            Assert(!plan.Items.Any(i => i.Target == Path32("nvaudcap64v.dll") || i.Target == Path32("nvagent.dll")), "another author or an unlisted name was planned");
+            var connected = inventory with { Devices = [.. inventory.Devices, new(@"PCI\VEN_10DE&DEV_1C03\NOW", "Display", "oem42.inf", "nvlddmkm", true, [@"PCI\VEN_10DE&DEV_1C03"], "GTX")] };
+            Assert(!DeepCleanPlanner.Create(connected, [Vendor.Nvidia]).Items.Any(i => i.Reason == "fileModule"), "modules planned while the brand is connected");
         });
         await test("System32 files need package evidence, the brand as author and no remaining user; loaders always stay", async () =>
         {

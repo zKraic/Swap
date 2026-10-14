@@ -90,8 +90,9 @@ public partial class MainWindow
             var cleanupIssues2 = new List<string>(); InspectLayout(CleanupPage, cleanupIssues2);
             if (cleanupIssues2.Count > 0) throw new InvalidOperationException("Deep cleanup layout: " + string.Join(", ", cleanupIssues2));
             Capture(Path.Combine(output, "deep-cleanup-preview.png"));
+            progressCapture = Path.Combine(output, "cleanup-progress.png"); Progress.Visibility = Visibility.Visible;
             var cleaned = await RunCleanupCoreAsync(cleanupPlan!, cleanupRows.Where(r => r.Selected).Select(r => r.Item.Key).ToHashSet(StringComparer.OrdinalIgnoreCase), CancellationToken.None);
-            if (cleaned.Failed != 0 || cleaned.Done < 15) throw new InvalidOperationException($"Deep cleanup demo failed: done={cleaned.Done} failed={cleaned.Failed}");
+            if (cleaned.Failed != 0 || cleaned.Done < 15 || cleanupReports < cleaned.Done) throw new InvalidOperationException($"Deep cleanup demo failed: done={cleaned.Done} failed={cleaned.Failed} progress={cleanupReports}");
             await AnalyzeCleanupAsync(); UpdateLayout();
             if (cleanupRows.Count != 0 || CleanupEmpty.Visibility != Visibility.Visible) throw new InvalidOperationException("Deep cleanup left items: " + cleanupRows.Count);
             Capture(Path.Combine(output, "deep-cleanup-done.png"));
@@ -144,7 +145,7 @@ public partial class MainWindow
             UpdateLayout(); Capture(Path.Combine(output, "swap-detected.png"));
             await StartSwapInstallAsync();
             if (swapState != "done" || swapIntent is not null || File.Exists(IntentFile) || lastValidationPath is null || !File.Exists(lastValidationPath) || lastValidation is not { DriverVerified: true, CleanupRemoved: > 0, LeftoversAfter: 0 } ||
-                swapAttempts != 2 || ((DemoPlatform)platform).FailedInstalls != 0 || !RunButton.IsEnabled)
+                swapAttempts != 2 || ((DemoPlatform)platform).FailedInstalls != 0 || !RunButton.IsEnabled || SwapExtraButton.Visibility != Visibility.Visible)
                 throw new InvalidOperationException($"Card change did not finish: {swapState} {lastValidation}");
             var markdown = await File.ReadAllTextAsync(lastValidationPath);
             if (!markdown.Contains("### Swap validation report") || !markdown.Contains("Simulated demo") || !markdown.Contains("Direct3D 12 available") ||

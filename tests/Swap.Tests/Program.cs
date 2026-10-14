@@ -357,6 +357,11 @@ if(previewVendor is not null) await Test("Real deep-cleanup preview with the "+p
     Console.WriteLine($"Preview: {plan.Items.Count} items, {automatic} removed automatically after a card change ({plan.Bytes/1048576} MB), {plan.Items.Count(i=>i.Kind==RemnantKind.Uninstaller)} programs for review, {plan.Kept.Count} kept. Nothing was changed.");
     Assert(plan.Items.Count>0);
 });
+var protectedLab=args.FirstOrDefault(a=>a.StartsWith("--protected-registry-lab="))?[25..];
+if(protectedLab is not null) await Test("Real PnP lockdown entry: hive backup, privileged delete and restore",async()=>{
+    Assert(new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator),"Run elevated.");
+    await ProtectedRegistryLab.RunAsync(Assert,Path.Combine(protectedLab,Guid.NewGuid().ToString("N")));
+});
 var taskExe=args.FirstOrDefault(a=>a.StartsWith("--logon-task-lab="))?[17..];
 if(taskExe is not null) await Test("Real sign-in task registration, protected copy and removal",async()=>{
     const string name=@"\KraicDev\Swap lab task";

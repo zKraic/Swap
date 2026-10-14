@@ -123,7 +123,7 @@ public partial class MainWindow
         if (current.Remote) throw new InvalidOperationException(T("remote"));
         if (current.PendingReboot && !Demo) throw new InvalidOperationException(T("systemReboot"));
         EnsureWritable(dataRoot);
-        var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, Stage);
+        var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, CleanupStage, CleanupProgress);
         Status.Text = string.Format(T("cleanupDone"), outcome.Done, outcome.Failed, Size(outcome.Freed) is { Length: > 0 } size ? size : "0 KB") + (outcome.RestartRecommended ? " " + T("cleanupRestart") : "");
         foreach (var result in outcome.Results.Where(r => r.Status != "done")) Log(T("status" + char.ToUpperInvariant(result.Status[0]) + result.Status[1..]) + " · " + result.Label + " · " + result.Message);
         if (outcome.RestartRecommended && !Demo) { rebootRequested = true; }
@@ -145,7 +145,7 @@ public partial class MainWindow
             var keys = plan.Items.Where(i => i.Selected && i.Kind != RemnantKind.Uninstaller).Select(i => i.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (!keys.Any(k => !k.StartsWith("process:", StringComparison.Ordinal))) return;
             Log(T("cleanupTitle") + " · " + string.Join(", ", plan.Vendors.Select(VendorLabel)));
-            var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, Stage);
+            var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, CleanupStage, CleanupProgress);
             lastCleanup = outcome;
             Log(string.Format(T("cleanupDone"), outcome.Done, outcome.Failed, Size(outcome.Freed) is { Length: > 0 } size ? size : "0 KB"));
         }

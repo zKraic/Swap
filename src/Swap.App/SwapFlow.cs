@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using Swap.Core;
 using Swap.Windows;
@@ -223,7 +224,10 @@ public partial class MainWindow
     private void ShowSwap(string state, Adapter? adapter)
     {
         swapState = state; SwapBanner.Visibility = Visibility.Visible;
-        SwapPrimaryButton.Visibility = SwapSecondaryButton.Visibility = Visibility.Collapsed;
+        SwapPrimaryButton.Visibility = SwapSecondaryButton.Visibility = SwapExtraButton.Visibility = Visibility.Collapsed;
+        // The status bar says the same as the banner, not a generic "ready to start".
+        if (state is "prepared" or "waiting") Status.Text = T("swapReadyTitle");
+        else if (state == "noGpu") Status.Text = T("swapNoGpuTitle");
         SwapCancelButton.Visibility = Visibility.Visible; SwapCancelButton.Content = T("swapCancel");
         void Primary(string key) { SwapPrimaryButton.Content = T(key); SwapPrimaryButton.Visibility = Visibility.Visible; }
         switch (state)
@@ -242,9 +246,14 @@ public partial class MainWindow
                 SwapTitle.Text = T("swapDoneTitle");
                 var games = lastValidation is null ? "" : T(lastValidation.GamesAfter.Any(f => f.Attention) ? "gamesAttention" : "gamesReady");
                 SwapText.Text = string.Format(T("swapDoneText"), lastValidation?.CleanupRemoved ?? 0, games);
-                // Windows often starts the new card at 60 Hz; Diagnostics applies the highest rate with keep or revert.
-                if (graphicsDiagnostics?.Displays.FirstOrDefault(d => d.Hz > 1 && d.MaximumHz > d.Hz + 1) is { } slow) SwapText.Text += " " + string.Format(T("swapRefresh"), slow.Hz, slow.MaximumHz);
-                Primary("swapOpenReport"); SwapSecondaryButton.Content = T("swapShare"); SwapSecondaryButton.Visibility = Visibility.Visible; SwapCancelButton.Content = T("swapDismiss"); break;
+                Primary("swapOpenReport"); SwapSecondaryButton.Content = T("swapShare"); SwapSecondaryButton.Visibility = Visibility.Visible; SwapCancelButton.Content = T("swapDismiss");
+                // Windows often starts the new card at 60 Hz: one click applies the highest rate, with the usual keep-or-revert.
+                // Otherwise, a Windows Update driver comes without the manufacturer's control panel: point to it, optional.
+                if (graphicsDiagnostics?.Displays.FirstOrDefault(d => d.Hz > 1 && d.MaximumHz > d.Hz + 1) is { } slow)
+                { SwapExtraButton.Content = string.Format(T("swapRefreshButton"), slow.MaximumHz); SwapExtraButton.Tag = slow; SwapExtraButton.Visibility = Visibility.Visible; }
+                else if (adapter is { Vendor: not Vendor.Unknown } card && VendorApp(card.Vendor) is { } app && (Demo || !WindowsPlatform.VendorSoftwareInstalled(card.Vendor)))
+                { SwapExtraButton.Content = string.Format(T("swapVendorApp"), app.Name); SwapExtraButton.Tag = app.Url; SwapExtraButton.Visibility = Visibility.Visible; }
+                break;
             default: SwapBanner.Visibility = Visibility.Collapsed; break;
         }
         UpdateButtons();
@@ -268,6 +277,26 @@ public partial class MainWindow
     {
         if (busy || swapState != "done" || lastValidationPath is null || !File.Exists(lastValidationPath)) return;
         CopyText(await File.ReadAllTextAsync(lastValidationPath)); Open(GithubForm); Status.Text = T("swapShared");
+    }
+    private static (string Name, string Url)? VendorApp(Vendor vendor) => vendor switch
+    {
+        Vendor.Amd => ("AMD Software: Adrenalin Edition", "https://www.amd.com/en/support/download/drivers.html"),
+        Vendor.Nvidia => ("NVIDIA App", "https://www.nvidia.com/en-us/software/nvidia-app/"),
+        Vendor.Intel => ("Intel Graphics Software", "https://www.intel.com/content/www/us/en/download-center/home.html"),
+        _ => null
+    };
+    private void SwapExtra(object sender, RoutedEventArgs e)
+    {
+        if (busy) return;
+        switch (SwapExtraButton.Tag)
+        {
+            case string url: Open(url); break;
+            case DisplayOutput display:
+                // The same keep-or-revert confirmation as in Diagnostics, where it is shown.
+                DiagnosticsNav.IsChecked = true; DisplayDisclosure.IsExpanded = true;
+                if (RefreshPanel.Children.OfType<Button>().FirstOrDefault(b => b.Tag is DisplayOutput d && d.Key == display.Key) is { } button) ApplyRefresh(button, new RoutedEventArgs());
+                SwapExtraButton.Visibility = Visibility.Collapsed; break;
+        }
     }
     private void SwapCancel(object sender, RoutedEventArgs e)
     {

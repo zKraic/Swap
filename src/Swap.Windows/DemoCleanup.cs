@@ -125,7 +125,17 @@ public sealed class DemoCleanupPlatform : ICleanupPlatform
         Directory.CreateDirectory(Path.GetDirectoryName(file)!); await File.WriteAllTextAsync(file, content); return new(0, "Simulated backup");
     }
     public Task<string> RestorePointAsync() { Calls.Add("restore-point"); return Task.FromResult("Punto de restauración simulado."); }
-    public Task<CommandResult> StopProcessAsync(int id, string path) => Step("stop:" + id, "process:" + id);
+    public Task<CommandResult> StopProcessAsync(int id, string path)
+    {
+        if (id == RestartedId) { Holder?.Dispose(); Holder = null; }
+        return Step("stop:" + id, "process:" + id);
+    }
+    // Test hook: a vendor program restarted after the plan keeps a file open in a folder being removed until it is stopped.
+    public const int RestartedId = 777777;
+    public FileStream? Holder { get; set; }
+    public string HolderImage { get; set; } = "";
+    public Task<IReadOnlyList<ProcessEntry>> RunningProcessesAsync() =>
+        Task.FromResult<IReadOnlyList<ProcessEntry>>(Holder is null || HolderImage.Length == 0 ? [] : [new(RestartedId, "restarted", HolderImage)]);
     public Task<CommandResult> RunUninstallerAsync(string key) => Step("uninstall:" + key, "app:" + key);
     public Task<CommandResult> RemoveDeviceAsync(string instanceId) => Step("remove-device:" + instanceId, "device:" + instanceId, FailDevices.Contains(instanceId));
     public async Task<CommandResult> ExportPackageAsync(string inf, string destination) => await Backup("export:" + inf, Path.Combine(destination, inf), "; simulated " + inf);
