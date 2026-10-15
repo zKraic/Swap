@@ -1,0 +1,85 @@
+﻿{
+    "schema":  1,
+    "author":  "KraicDev",
+    "version":  "1.0.0",
+    "generated":  "2026-10-14",
+    "sourceCommit":  "88ee5b7a2e08c47c095ab5b5ae3668978175fb4b",
+    "appSha256":  "035C7A910F4BA9A9E2FCB2123D7E85B61731A097E25E6183A807BE0858B9980A",
+    "bytes":  65957585,
+    "ci":  {
+               "run":  "https://github.com/zKraic/Swap/actions/runs/38639242945",
+               "passed":  199,
+               "failed":  0,
+               "artifactZipSha256":  "ABFFF3B600E20DD723B29BE69B0E6B012BBA8D979E7C93C28411AE56A76C155E"
+           },
+    "realPc":  {
+                   "change":  "MSI GeForce GTX 1060 6GB (PCI\\VEN_10DE\u0026DEV_1C03) to ASUS Radeon RX 7600 (PCI\\VEN_1002\u0026DEV_7480)",
+                   "date":  "2026-10-14",
+                   "system":  "Windows 11 Pro build 26300 (Spanish), Intel Core i5-9400F without integrated graphics, Gigabyte H310M DS2 2.0, UEFI Secure Boot",
+                   "buildsUsed":  {
+                                      "preparation":  "6350463",
+                                      "cardChange":  "58397d6",
+                                      "secondCleanup":  "6b6e06f",
+                                      "releaseChecks":  "88ee5b7"
+                                  },
+                   "signInTaskWithoutUac":  true,
+                   "driverInstalledBy":  "Windows Update",
+                   "driver":  "32.0.21030.2001",
+                   "firstCleanup":  {
+                                        "removed":  51,
+                                        "review":  1890,
+                                        "cause":  "1889 PnP lockdown entries reserved for TrustedInstaller; NVIDIA ProgramData kept open by restarted programs"
+                                    },
+                   "secondCleanup":  {
+                                         "removed":  1895,
+                                         "failed":  0,
+                                         "partial":  "GfnRuntimeSdk held by Epic Games Launcher (kept on purpose in 1.0.0)"
+                                     },
+                   "after":  {
+                                 "direct3d12":  "FL 12_2",
+                                 "vulkan":  "1.4.315",
+                                 "opencl":  "2.1 AMD-APP, 1 GPU",
+                                 "pcie":  "x8 Gen4 of x8 Gen4",
+                                 "displays":  [
+                                                  "1920x1080 180 Hz",
+                                                  "3840x2160 60 Hz"
+                                              ],
+                                 "nvidiaDevicesServicesTasksSystemFiles":  0
+                             },
+                   "exactTests":  {
+                                      "passed":  205,
+                                      "failed":  0,
+                                      "elevated":  true,
+                                      "testsSha256":  "8D2BDED5C9C9D172A8BE741F06293723E608E603193C8F6ED5D3D2338732A080"
+                                  },
+                   "exactUiAudit":  {
+                                        "passed":  158,
+                                        "failed":  0,
+                                        "captures":  48
+                                    }
+               },
+    "isolatedWindows":  {
+                            "completed":  true,
+                            "os":  "Windows 10 Enterprise LTSC Evaluation 10.0.19044 x64 (QEMU, no network, no GPU passthrough, no .NET)",
+                            "corePassed":  206,
+                            "coreFailed":  0,
+                            "uiPassed":  158,
+                            "uiFailed":  0,
+                            "checksPassed":  12,
+                            "captures":  48,
+                            "deepCleanLab":  {
+                                                 "removed":  16,
+                                                 "restored":  14,
+                                                 "failures":  0
+                                             },
+                            "protectedPnpEntryLab":  true,
+                            "note":  "Logic and labs in one boot, interface audit afterwards in the same boot; an earlier attempt during a Defender full scan was discarded."
+                        },
+    "notTested":  [
+                      "AMD to NVIDIA and Intel Arc directions",
+                      "laptops and hybrid graphics",
+                      "vendor installer suites",
+                      "games beyond runtime checks",
+                      "all DPI and monitor combinations"
+                  ]
+}

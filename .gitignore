@@ -30,6 +30,8 @@ docs/validation/*
 !docs/validation/v050-result.json
 !docs/validation/V060-RESULTS.md
 !docs/validation/v060-result.json
+!docs/validation/V100-RESULTS.md
+!docs/validation/v100-result.json
 !docs/validation/comparison/
 scripts/Renew-QemuGuestLogin.ps1
 scripts/vm/RecoverGuestHive.py

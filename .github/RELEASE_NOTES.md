@@ -8,7 +8,7 @@ Change your graphics card brand on Windows without leftovers — **before or aft
 - **Progress with percentages**, **Free cleanup backups**, one-click highest refresh rate after the change, and a link to the manufacturer's optional control panel.
 - Fixes: text encoding on non-English Windows, the taskbar icon, and the clean button after an analysis.
 
-**Exact executable validated.** __VALIDATION__
+**Exact executable validated.** SHA-256 `035C7A910F4BA9A9E2FCB2123D7E85B61731A097E25E6183A807BE0858B9980A` (source `88ee5b7`): 199/199 logic tests in CI; on the same real PC after the change 205/205 exact tests (elevated) and 158/158 interface cases; in an isolated Windows 10 guest 206/206 checks including the real deep-cleanup lab with undo and the protected PnP entry lab, 158/158 interface cases and 12/12 environment and identity checks.
 
 Download **Swap.exe** directly. No installer, ZIP or separate .NET. Administrator permission is required; Windows may require a restart after changing a driver.
 
