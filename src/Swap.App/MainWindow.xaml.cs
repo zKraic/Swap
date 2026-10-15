@@ -147,6 +147,7 @@ public partial class MainWindow : Window
         RunButton.IsEnabled = DownloadButton.IsEnabled = enabled;
         PrepareButton.IsEnabled = !busy && !readOnly && snapshot is { Admin: true, Complete: true } && TargetAdapter is not null && swapIntent is null;
         SwapPrimaryButton.IsEnabled = SwapSecondaryButton.IsEnabled = SwapCancelButton.IsEnabled = !busy;
+        PaintSoftware();
     }
     private static string VendorName(Vendor v) => v == Vendor.Nvidia ? "NVIDIA" : v == Vendor.Amd ? "AMD" : v == Vendor.Intel ? "Intel" : "—";
     private Vendor PreviousVendor(Snapshot current)

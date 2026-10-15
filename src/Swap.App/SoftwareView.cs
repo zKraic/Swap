@@ -26,10 +26,14 @@ public partial class MainWindow
         var findings = SoftwareFindings();
         SoftwareText.Text = findings.Count == 0 ? T("unknown") : string.Join("\n", findings.Select(f => (f.Attention ? "⚠ " : "✓ ") + Describe(f)));
         var vendor = TargetAdapter?.Vendor ?? Vendor.Unknown;
-        bool offer = softwareFacts is { SuiteInstalled: false } && vendor is Vendor.Nvidia or Vendor.Amd or Vendor.Intel;
-        SuiteButton.Content = offer ? string.Format(T(VendorSuite.Downloadable(vendor) ? "suiteInstall" : "suiteOpenPage"), VendorSuite.Name(vendor)) : "";
+        // Not offered for a card that is about to be replaced (a prepared change waits for the new one).
+        bool offer = softwareFacts is { SuiteInstalled: false } && swapIntent is null && vendor is Vendor.Nvidia or Vendor.Amd or Vendor.Intel;
+        SuiteButton.Content = offer ? string.Format(T(CanInstallSuite(vendor) ? "suiteInstall" : "suiteOpenPage"), VendorSuite.Name(vendor)) : "";
         SuiteButton.Visibility = offer ? Visibility.Visible : Visibility.Collapsed;
     }
+    // The vendor installer also installs drivers: it needs the same conditions as a driver change (administrator,
+    // full mode, no remote session). Otherwise, and for Intel, the official page opens instead.
+    private bool CanInstallSuite(Vendor vendor) => VendorSuite.Downloadable(vendor) && !readOnly && snapshot is { Admin: true, Remote: false };
     private async void InstallSuite(object sender, RoutedEventArgs e)
     {
         if (busy || TargetAdapter is not { } card) return;
@@ -40,7 +44,7 @@ public partial class MainWindow
     private async Task InstallVendorSoftwareAsync(Vendor vendor)
     {
         var name = VendorSuite.Name(vendor);
-        if (!VendorSuite.Downloadable(vendor)) { Open(VendorSuite.Page(vendor).ToString()); Status.Text = string.Format(T("suitePageOpened"), name); return; }
+        if (!CanInstallSuite(vendor)) { Open(VendorSuite.Page(vendor).ToString()); Status.Text = string.Format(T("suitePageOpened"), name); return; }
         SuiteOffer? offer = null;
         await Guard(async () =>
         {

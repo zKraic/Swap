@@ -159,6 +159,10 @@ public partial class MainWindow
             demoSuiteInstalled = false; await InspectSoftwareAsync(); SoftwareDisclosure.IsExpanded = true; UpdateLayout();
             if (!SoftwareText.Text.Contains(T("suiteMissing")) || SuiteButton.Visibility != Visibility.Visible) throw new InvalidOperationException("Suite offer missing: " + SoftwareText.Text);
             Capture(Path.Combine(output, "software-check.png"));
+            // Where a driver change would be blocked (here a remote session), the button opens the official page instead.
+            var full = snapshot; snapshot = snapshot! with { Remote = true }; PaintSoftware();
+            if (!Equals(SuiteButton.Content, string.Format(T("suiteOpenPage"), VendorSuite.Name(Vendor.Amd)))) throw new InvalidOperationException("A remote session must not install the control panel: " + SuiteButton.Content);
+            snapshot = full; PaintSoftware();
             await InstallVendorSoftwareAsync(Vendor.Amd);
             if (!demoSuiteInstalled || SuiteButton.Visibility == Visibility.Visible || !SoftwareText.Text.Contains(T("suiteInstalled"))) throw new InvalidOperationException("Suite install not verified: " + SoftwareText.Text);
             SoftwareDisclosure.IsExpanded = false; demoSuiteInstalled = false;
