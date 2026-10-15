@@ -285,6 +285,24 @@ await Test("Sign-in task opens Swap elevated for one user, without battery or ti
     Assert(V("DisallowStartIfOnBatteries")=="false"&&V("StopIfGoingOnBatteries")=="false"&&V("MultipleInstancesPolicy")=="IgnoreNew");
     Assert(V("Command")==@"C:\ProgramData\Swap\Continuation\Swap & <x>.exe"&&V("Arguments")=="--after-swap"&&V("WorkingDirectory")==@"C:\ProgramData\Swap\Continuation");
     Assert(!xml.Descendants(n+"TimeTrigger").Any()&&xml.Descendants(n+"LogonTrigger").Count()==1);return Task.CompletedTask;});
+await Test("Vendor suite: newest official link only, vendor hosts only, vendor signature only",()=>{
+    var nvidia="<a href=\"https://us.download.nvidia.com/nvapp/client/11.0.5.420/NVIDIA_app_v11.0.5.420.exe\">x</a> <a href='https://us.download.nvidia.com/nvapp/client/11.0.9.565/NVIDIA_app_v11.0.9.565.exe'>y</a> https://evil.example/nvapp/client/12.0/NVIDIA_app_v12.0.exe";
+    var n=VendorSuite.Parse(Vendor.Nvidia,nvidia);Assert(n is {Version:"11.0.9.565",Referer:null}&&n.Url.Host=="us.download.nvidia.com",n?.Version??"null");
+    var amd="href=\"https://drivers.amd.com/drivers/installer/26.10/whql/amd-software-adrenalin-edition-26.8.1-minimalsetup-260818_web.exe\" https://drivers.amd.com/drivers/installer/26.5/whql/amd-software-adrenalin-edition-26.5.2-minimalsetup-260512_web.exe";
+    var a=VendorSuite.Parse(Vendor.Amd,amd);Assert(a is {Version:"26.8.1"}&&a.Referer?.Host=="www.amd.com");
+    Assert(VendorSuite.Parse(Vendor.Amd,"nothing here") is null&&VendorSuite.Parse(Vendor.Intel,amd) is null&&!VendorSuite.Downloadable(Vendor.Intel));
+    Assert(!VendorSuite.Trusted(new Uri("http://us.download.nvidia.com/a.exe"))&&!VendorSuite.Trusted(new Uri("https://us.download.nvidia.com.evil.example/a.exe"))&&!VendorSuite.Trusted(new Uri("https://drivers.amd.com:8443/a.exe")));
+    Assert(VendorSuite.SignedBy("CN=NVIDIA Corporation, O=NVIDIA Corporation, L=Santa Clara, C=US",Vendor.Nvidia)&&VendorSuite.SignedBy("CN=\"Advanced Micro Devices, Inc.\", O=\"Advanced Micro Devices, Inc.\"",Vendor.Amd));
+    Assert(VendorSuite.SignedBy("CN=Intel Corporation, O=Intel Corporation",Vendor.Intel)&&VendorSuite.SignedBy("CN=NVIDIA Corporation",Vendor.Nvidia));
+    Assert(!VendorSuite.SignedBy("CN=Fake, O=NVIDIA Corporation",Vendor.Nvidia)&&!VendorSuite.SignedBy("CN=NVIDIA Corporation",Vendor.Amd)&&!VendorSuite.SignedBy("",Vendor.Intel));
+    Assert(!VendorSuite.SignedBy("CN=NVIDIA Corporation Tools Ltd, O=X",Vendor.Nvidia)&&!VendorSuite.SignedBy("CN=\"Advanced Micro Devices Fan Club\"",Vendor.Amd)&&!VendorSuite.SignedBy("CN=\"NVIDIA Corporation, O=X",Vendor.Nvidia));
+    Assert(VendorSuite.Silent(Vendor.Nvidia)&&!VendorSuite.Silent(Vendor.Amd));return Task.CompletedTask;});
+await Test("Software check names what is missing and never treats optional components as errors",()=>{
+    var all=new SoftwareFacts(true,"26.8.1",true,true,"14.44",true,true,true,2,false);
+    var ok=SoftwareReadiness.Evaluate(Vendor.Amd,all);Assert(!ok.Any(f=>f.Attention)&&ok.Any(f=>f.Code=="suiteInstalled"&&f.Detail.Contains("26.8.1"))&&ok.Any(f=>f.Code=="hagsOn")&&!ok.Any(f=>f.Code.StartsWith("physx")));
+    var missing=SoftwareReadiness.Evaluate(Vendor.Nvidia,all with {SuiteInstalled=false,VcRuntimeX86=false,DirectX9Legacy=false,PhysX=false,HdmiAudio=false,PendingRestart=true});
+    Assert(missing.Single(f=>f.Code=="suiteMissing").Attention&&missing.Single(f=>f.Code=="vcRuntimeMissing").Detail=="x86"&&!missing.Single(f=>f.Code=="directx9Missing").Attention&&!missing.Single(f=>f.Code=="physxMissing").Attention);
+    Assert(missing.Single(f=>f.Code=="hdmiAudioMissing").Attention&&missing.Any(f=>f.Code=="restartPending"&&f.Attention));return Task.CompletedTask;});
 await Test("Install retries after a card change stay under ten minutes",()=>{Assert(SwapDetection.InstallRetries.Count>=3&&SwapDetection.InstallRetries.Sum()<600&&SwapDetection.InstallRetries.All(s=>s>=30));return Task.CompletedTask;});
 await Test("Every successful workflow stores a final preparation receipt",async()=>{
     foreach(var mode in new[]{"install","maintenance","resume"}){
@@ -405,6 +423,16 @@ var amdLab=args.FirstOrDefault(a=>a.StartsWith("--amd-cleanup-lab="))?[18..];
 if(amdLab is not null) await LabTests.AmdCleanupAsync(Test,(value,message)=>Assert(value,message),amdLab);
 var undoLab=args.FirstOrDefault(a=>a.StartsWith("--undo-lab="))?[11..];
 if(undoLab is not null) await LabTests.UndoAsync(Test,(value,message)=>Assert(value,message),undoLab);
+// Real vendor site: newest installer link, download from the vendor host and its Authenticode signer. Never runs it. Isolated guest only.
+var suiteLab=args.FirstOrDefault(a=>a.StartsWith("--vendor-suite-lab="))?[19..];
+if(suiteLab is not null) foreach(var name in suiteLab.Split(',',StringSplitOptions.RemoveEmptyEntries)) await Test("Real official installer of "+name+": vendor page, vendor host, vendor signature (not run)",async()=>{
+    if(Environment.MachineName!="SWAPTESTVM")throw new InvalidOperationException("Downloading vendor installers belongs in the private guest.");
+    var vendor=Enum.Parse<Vendor>(name,true);var offer=await VendorSoftware.FindAsync(vendor);Assert(offer is not null,"No installer link on "+VendorSuite.Page(vendor));
+    var folder=Path.Combine(root,"suite-"+name);double last=0;var file=await VendorSoftware.DownloadAsync(offer!,folder,new Progress<double>(p=>last=p));
+    try{var (valid,subject)=await WindowsPlatform.PublisherAsync(file);Console.WriteLine($"  {offer!.Name} {offer.Version} · {offer.Url.Host} · {new FileInfo(file).Length/1048576.0:0.0} MB · valid={valid} · {subject}");
+        Assert(await VendorSoftware.VerifyAsync(file,vendor),"Signature not accepted: "+subject);Assert(!Directory.EnumerateFiles(folder,"*.part").Any());}
+    finally{File.Delete(file);}
+});
 if(args.Contains("--graphics-native")) await Test("Real isolated guest display, Direct3D enumeration and recent events",async()=>{
     if(Environment.MachineName!="SWAPTESTVM" && Environment.UserName!="WDAGUtilityAccount")throw new InvalidOperationException("Native graphics testing belongs in the private guest.");
     var d=await GraphicsInspector.ReadAsync();Assert(d.DisplaysComplete&&d.Displays.Count>0&&d.Probes.Count>0&&d.EventsComplete);

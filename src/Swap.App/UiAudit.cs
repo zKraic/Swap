@@ -93,11 +93,24 @@ public partial class MainWindow
             var cleanupIssues2 = new List<string>(); InspectLayout(CleanupPage, cleanupIssues2);
             if (cleanupIssues2.Count > 0) throw new InvalidOperationException("Deep cleanup layout: " + string.Join(", ", cleanupIssues2));
             Capture(Path.Combine(output, "deep-cleanup-preview.png"));
+            // A box the person unticks stays unticked when the plan is rebuilt (another brand, a new analysis); all/none work.
+            var kept = cleanupRows.First(r => r.Editable && r.Item.Kind == RemnantKind.Folder);
+            kept.Selected = false; cleanupChoices[kept.Item.Key] = false;
+            CleanIntel.IsChecked = true; CleanupVendorChanged(CleanIntel, new RoutedEventArgs()); CleanIntel.IsChecked = false; CleanupVendorChanged(CleanIntel, new RoutedEventArgs());
+            await AnalyzeCleanupAsync();
+            if (cleanupRows.Single(r => r.Item.Key == kept.Item.Key).Selected) throw new InvalidOperationException("An unticked cleanup item was ticked again by itself.");
+            SelectNoCleanup(this, new RoutedEventArgs());
+            if (cleanupRows.Any(r => r.Editable && r.Selected) || CleanupRunButton.IsEnabled) throw new InvalidOperationException("Select none failed.");
+            SelectAllCleanup(this, new RoutedEventArgs());
+            if (cleanupRows.Any(r => r.Editable && !r.Selected) || !CleanupRunButton.IsEnabled) throw new InvalidOperationException("Select all failed.");
+            results.Add(new { scenario = "cleanup-selection-kept-and-all-none-demo", passed = true });
             progressCapture = Path.Combine(output, "cleanup-progress.png"); Progress.Visibility = Visibility.Visible;
             var cleaned = await RunCleanupCoreAsync(cleanupPlan!, cleanupRows.Where(r => r.Selected).Select(r => r.Item.Key).ToHashSet(StringComparer.OrdinalIgnoreCase), CancellationToken.None);
             if (cleaned.Failed != 0 || cleaned.Done < 15 || cleanupReports < cleaned.Done) throw new InvalidOperationException($"Deep cleanup demo failed: done={cleaned.Done} failed={cleaned.Failed} progress={cleanupReports}");
-            await AnalyzeCleanupAsync(); UpdateLayout();
+            // As Operation does when a real cleanup ends: the bar goes away and the result stays in the status line.
+            var cleanedText = Status.Text; await AnalyzeCleanupAsync(); Status.Text = cleanedText; Progress.Visibility = ProgressText.Visibility = Visibility.Collapsed; UpdateLayout();
             if (cleanupRows.Count != 0 || CleanupEmpty.Visibility != Visibility.Visible) throw new InvalidOperationException("Deep cleanup left items: " + cleanupRows.Count);
+            if (!File.Exists(Path.Combine(cleaned.Session, "cleanup-report.md")) || CleanupResultPanel.Visibility == Visibility.Visible) throw new InvalidOperationException("Cleanup report missing or a clean run listed as not removed.");
             Capture(Path.Combine(output, "deep-cleanup-done.png"));
             var undone = await new DeepCleanEngine(Cleanup).UndoAsync(cleaned.Session, CleanupBackupRoot(), Log);
             if (undone.Results.Count(r => r.Status == "restored") < 8 || undone.Results.Any(r => r.Status == "failed")) throw new InvalidOperationException("Deep cleanup undo failed.");
@@ -142,6 +155,14 @@ public partial class MainWindow
             if (gameIssues.Count > 0) throw new InvalidOperationException("Games layout: " + string.Join(", ", gameIssues));
             Capture(Path.Combine(output, "games-apis.png")); GamesDisclosure.IsExpanded = false;
             results.Add(new { scenario = "games-apis-demo", passed = true });
+            // Software and components: the missing control panel is offered and, once installed (simulated), verified.
+            demoSuiteInstalled = false; await InspectSoftwareAsync(); SoftwareDisclosure.IsExpanded = true; UpdateLayout();
+            if (!SoftwareText.Text.Contains(T("suiteMissing")) || SuiteButton.Visibility != Visibility.Visible) throw new InvalidOperationException("Suite offer missing: " + SoftwareText.Text);
+            Capture(Path.Combine(output, "software-check.png"));
+            await InstallVendorSoftwareAsync(Vendor.Amd);
+            if (!demoSuiteInstalled || SuiteButton.Visibility == Visibility.Visible || !SoftwareText.Text.Contains(T("suiteInstalled"))) throw new InvalidOperationException("Suite install not verified: " + SoftwareText.Text);
+            SoftwareDisclosure.IsExpanded = false; demoSuiteInstalled = false;
+            results.Add(new { scenario = "software-check-and-suite-demo", passed = true });
             // Guided card change: prepared on an NVIDIA card, opened again with an AMD card, installed, cleaned up and reported.
             if (File.Exists(IntentFile)) File.Delete(IntentFile);
             platform = new DemoPlatform { Target = Vendor.Nvidia }; cleanupPlatform = null; await AnalyzeAsync(); HomeNav.IsChecked = true;
@@ -163,7 +184,8 @@ public partial class MainWindow
                 Environment.UserName.Length >= 3 && markdown.Contains(Environment.UserName, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Validation report content failed.");
             foreach (var language in new[] { "es", "de" })
             {
-                preferences = new(language, "dark"); dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); RelabelSwap();
+                preferences = new(language, "dark"); dark = preferences.Apply(); Relocalize(); Status.Text = T("swapDoneTitle");
+                if (PageTitle.Text != T("home")) throw new InvalidOperationException("Page title not translated: " + PageTitle.Text);
                 Width = 880; Height = 640; UpdateLayout(); await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
                 var swapIssues = new List<string>(); InspectLayout(HomePage, swapIssues);
                 if (swapIssues.Count > 0) throw new InvalidOperationException("Card change banner layout " + language + ": " + string.Join(", ", swapIssues));

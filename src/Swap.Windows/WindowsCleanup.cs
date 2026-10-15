@@ -656,6 +656,13 @@ public sealed partial class WindowsCleanupPlatform : ICleanupPlatform
         {
             using var process = Process.GetProcessById(id);
             if (!ImagePath(id).Equals(path, StringComparison.OrdinalIgnoreCase)) return new(0, "Process already exited.");
+            // A program with a window is asked to close first, the way the person would close it; only what stays is ended.
+            if (process.MainWindowHandle != IntPtr.Zero && process.CloseMainWindow())
+            {
+                using var polite = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                try { await process.WaitForExitAsync(polite.Token); return new(0, "Closed " + Path.GetFileName(path)); }
+                catch (OperationCanceledException) { }
+            }
             process.Kill(false);
             await process.WaitForExitAsync(new CancellationTokenSource(TimeSpan.FromSeconds(15)).Token);
             return new(0, "Stopped " + Path.GetFileName(path));

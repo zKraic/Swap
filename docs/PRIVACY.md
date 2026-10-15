@@ -4,7 +4,7 @@ KraicDev · Swap.
 
 No accounts, ads, analytics or project telemetry. Inventory, backups, checkpoints and sessions are local. Raw inventory can contain hardware IDs, machine identifiers and paths. Review reports before public attachment; never upload Data, driver packages, credentials or recovery keys.
 
-At your request, automatic discovery/download uses the configured Windows Update service; manufacturer links open their websites. Those services' privacy policies apply. Structured incident reports omit full event messages. Swap does not upload local reports automatically.
+At your request, automatic discovery/download uses the configured Windows Update service; manufacturer links open their websites. Installing the manufacturer's control panel (only after you confirm) reads the vendor's official page (nvidia.com or amd.com) and downloads the installer from its download host, as a browser would; Swap sends no identifier of its own, and the vendor's installer then follows its own privacy terms. Those services' privacy policies apply. Structured incident reports omit full event messages. Swap does not upload local reports automatically.
 
 The website has no tracking scripts, cookies, remote fonts or analytics. GitHub hosts the site/downloads and processes requests under https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement . Windows Update: https://privacy.microsoft.com/privacystatement .
 

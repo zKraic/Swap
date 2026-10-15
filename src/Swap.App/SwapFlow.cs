@@ -252,7 +252,7 @@ public partial class MainWindow
                 if (graphicsDiagnostics?.Displays.FirstOrDefault(d => d.Hz > 1 && d.MaximumHz > d.Hz + 1) is { } slow)
                 { SwapExtraButton.Content = string.Format(T("swapRefreshButton"), slow.MaximumHz); SwapExtraButton.Tag = slow; SwapExtraButton.Visibility = Visibility.Visible; }
                 else if (adapter is { Vendor: not Vendor.Unknown } card && VendorApp(card.Vendor) is { } app && (Demo || !WindowsPlatform.VendorSoftwareInstalled(card.Vendor)))
-                { SwapExtraButton.Content = string.Format(T("swapVendorApp"), app.Name); SwapExtraButton.Tag = app.Url; SwapExtraButton.Visibility = Visibility.Visible; }
+                { SwapExtraButton.Content = string.Format(T("swapVendorApp"), app.Name); SwapExtraButton.Tag = card.Vendor; SwapExtraButton.Visibility = Visibility.Visible; }
                 break;
             default: SwapBanner.Visibility = Visibility.Collapsed; break;
         }
@@ -285,12 +285,12 @@ public partial class MainWindow
         Vendor.Intel => ("Intel Graphics Software", "https://www.intel.com/content/www/us/en/download-center/home.html"),
         _ => null
     };
-    private void SwapExtra(object sender, RoutedEventArgs e)
+    private async void SwapExtra(object sender, RoutedEventArgs e)
     {
         if (busy) return;
         switch (SwapExtraButton.Tag)
         {
-            case string url: Open(url); break;
+            case Vendor vendor: SwapExtraButton.Visibility = Visibility.Collapsed; await InstallVendorSoftwareAsync(vendor); break;
             case DisplayOutput display:
                 // The same keep-or-revert confirmation as in Diagnostics, where it is shown.
                 DiagnosticsNav.IsChecked = true; DisplayDisclosure.IsExpanded = true;

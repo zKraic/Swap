@@ -1,5 +1,16 @@
 # Changelog · KraicDev
 
+## 1.1.0
+
+The software around the driver, and a cleanup you can follow item by item. Built from what the real GTX 1060 → RX 7600 change showed: Windows Update installed a working driver, but not the manufacturer's control panel, and the cleanup needed to say clearly what it left and why.
+
+- **New: the manufacturer's control panel in one click.** When NVIDIA App or AMD Software: Adrenalin Edition is missing, Diagnostics → *Software and components* offers it, and so does the banner at the end of a card change. Swap reads the newest installer from the vendor's official page, downloads it over HTTPS only from the vendor's own download host (checked again after redirects; an incomplete download is discarded), refuses it unless Windows reports a valid Authenticode signature whose signer is exactly that manufacturer, and runs it: NVIDIA App silently, AMD's installer for you to complete. Then it checks that Windows lists it, deletes the installer and saves an install report. Nothing is downloaded without your confirmation. Intel's site does not allow automated downloads, so Swap opens its official page.
+- **New: Software and components check.** Whether the manufacturer's panel, the Visual C++ 2015–2022 runtimes (x64 and x86), the legacy DirectX 9 files older games use, the card's HDMI/DisplayPort audio and, for NVIDIA, PhysX are present; hardware-accelerated GPU scheduling; a pending restart. Optional components are named, never reported as errors.
+- **Cleanup you can follow.** *Select all* and *Select none*. What you untick stays unticked when the plan is rebuilt (another brand, a new analysis, a language change); before, a rebuilt plan went back to the default selection. After a cleanup, *What could not be removed and why* lists each item with the reason in plain words (in use by another program, needs a restart, Windows still lists it, no backup possible), and a cleanup report in your language is saved in Reports and in the session: what was removed, what was not and why, what was kept on purpose and how to undo it.
+- **Programs are closed in order.** Before a manual cleanup the confirmation names the open programs of the old brand that will be closed, so unsaved work can be saved first. A program with a window is asked to close, as if you closed it; only what is still running after 10 seconds is ended. Third-party programs are never closed.
+- Fixes: changing the language also translates the page title; the signer check requires the vendor's whole name, not a name that starts with it.
+- Tests: 201 logic cases (official page parsing, trusted hosts, signer names, software check), a 160-case WPF audit (selection kept, select all/none, the cleanup report, the software check and a simulated panel install) and a lab in the isolated Windows guest that downloads the real NVIDIA App and AMD installers from their official pages and checks their signatures without running them.
+
 ## 1.0.0
 
 The first release validated on a real card change. On a desktop with Windows 11, a GeForce GTX 1060 was replaced with a Radeon RX 7600 using **I'm changing my card**; everything that change showed is fixed here, and the fixes were checked again on the same PC.

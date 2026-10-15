@@ -15,6 +15,8 @@ public partial class MainWindow
     private RemnantInventory? cleanupInventory;
     private DeepCleanPlan? cleanupPlan, versionsPlan;
     private List<CleanupRow> cleanupRows = [];
+    // What the person ticked or unticked, by item key: re-planning (another brand, a new analysis, a language change) keeps it.
+    private readonly Dictionary<string, bool> cleanupChoices = new(StringComparer.OrdinalIgnoreCase);
     private sealed class CleanupRow(RemnantItem item, string title, string detail, string size) : INotifyPropertyChanged
     {
         private bool selected = item.Selected;
@@ -87,7 +89,7 @@ public partial class MainWindow
         if (cleanupInventory is null) return;
         var vendors = new[] { (CleanNvidia, Vendor.Nvidia), (CleanAmd, Vendor.Amd), (CleanIntel, Vendor.Intel) }.Where(v => v.Item1.IsChecked == true && v.Item1.IsEnabled).Select(v => v.Item2).ToArray();
         cleanupPlan = DeepCleanPlanner.Create(cleanupInventory, vendors);
-        cleanupRows = Rows(cleanupPlan, null);
+        cleanupRows = Rows(cleanupPlan, cleanupChoices);
     }
     private static List<CleanupRow> Rows(DeepCleanPlan plan, IReadOnlyDictionary<string, bool>? selection) => plan.Items.Select(i =>
         new CleanupRow(selection is not null && selection.TryGetValue(i.Key, out var chosen) ? i with { Selected = chosen } : i, KindName(i.Kind) + " · " + i.Label,
@@ -102,7 +104,7 @@ public partial class MainWindow
     {
         if (cleanupInventory is null || cleanupPlan is null) return;
         LabelCleanupBrands(DeepCleanPlanner.PresentGpuVendors(cleanupInventory));
-        cleanupRows = Rows(cleanupPlan, cleanupRows.ToDictionary(r => r.Item.Key, r => r.Selected, StringComparer.OrdinalIgnoreCase));
+        cleanupRows = Rows(cleanupPlan, cleanupChoices);
         PaintCleanup();
     }
     private void PaintCleanup()
@@ -127,7 +129,20 @@ public partial class MainWindow
         CleanupSummary.Text = cleanupRows.Count == 0 ? "" : string.Format(T("cleanupSummary"), chosen.Length, Size(chosen.Sum(r => r.Item.Bytes)) is { Length: > 0 } size ? size : "0 KB");
         CleanupRunButton.IsEnabled = !busy && !readOnly && chosen.Length > 0;
     }
-    private void CleanupItemChanged(object sender, RoutedEventArgs e) => UpdateCleanupSummary();
+    private void CleanupItemChanged(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is CleanupRow row) cleanupChoices[row.Item.Key] = row.Selected;
+        UpdateCleanupSummary();
+    }
+    // Select all or none of what can be chosen; processes always follow the folders they run from.
+    private void SelectAllCleanup(object sender, RoutedEventArgs e) => SetCleanupSelection(true);
+    private void SelectNoCleanup(object sender, RoutedEventArgs e) => SetCleanupSelection(false);
+    private void SetCleanupSelection(bool selected)
+    {
+        if (busy) return;
+        foreach (var row in cleanupRows.Where(r => r.Editable)) { row.Selected = selected; cleanupChoices[row.Item.Key] = selected; }
+        UpdateCleanupSummary();
+    }
     private void CleanupVendorChanged(object sender, RoutedEventArgs e) { if (busy || cleanupInventory is null) return; PlanCleanup(); PaintCleanup(); }
     private async void AnalyzeCleanup(object sender, RoutedEventArgs e) => await Guard(AnalyzeCleanupAsync);
 
@@ -137,7 +152,10 @@ public partial class MainWindow
         var keys = cleanupRows.Where(r => r.Selected).Select(r => r.Item.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var count = cleanupRows.Count(r => r.Selected && r.Item.Kind != RemnantKind.Process);
         if (count == 0) return;
-        if (MessageBox.Show(this, string.Format(T("cleanupConfirm"), count), "Swap", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        // Programs of the old brand that are open get named, so nothing unsaved is lost when they are closed.
+        var programs = cleanupRows.Where(r => r.Selected && r.Item.Kind == RemnantKind.Process).Select(r => r.Item.Label).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var question = string.Format(T("cleanupConfirm"), count) + (programs.Length == 0 ? "" : "\n\n" + string.Format(T("cleanupCloseApps"), string.Join(", ", programs)));
+        if (MessageBox.Show(this, question, "Swap", MessageBoxButton.YesNo, programs.Length == 0 ? MessageBoxImage.Question : MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
         var plan = cleanupPlan;
         await Guard(() => Operation(async token => { await RunCleanupCoreAsync(plan, keys, token); var message = Status.Text; await AnalyzeCleanupAsync(); Status.Text = message; }));
     }
@@ -157,8 +175,54 @@ public partial class MainWindow
         var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, CleanupStage, CleanupProgress);
         Status.Text = string.Format(T("cleanupDone"), outcome.Done, outcome.Failed, Size(outcome.Freed) is { Length: > 0 } size ? size : "0 KB") + (outcome.RestartRecommended ? " " + T("cleanupRestart") : "");
         foreach (var result in outcome.Results.Where(r => r.Status != "done")) Log(T("status" + char.ToUpperInvariant(result.Status[0]) + result.Status[1..]) + " · " + result.Label + " · " + result.Message);
+        PaintCleanupResults(outcome);
+        await WriteCleanupReportAsync(plan, outcome);
         if (outcome.RestartRecommended && !Demo) { rebootRequested = true; }
         return outcome;
+    }
+
+    // Transparency: everything that was not removed is listed with the reason in plain words, not only in the technical log.
+    private static string Why(CleanupResult result)
+    {
+        var message = result.Message ?? "";
+        string Detail(string prefix) => message.StartsWith(prefix, StringComparison.Ordinal) ? message[prefix.Length..].Trim() : "";
+        return result.Status == "partial" ? string.Format(T("whyPartial"), Detail("inUse"))
+            : message.StartsWith("inUse", StringComparison.Ordinal) ? T("whyInUse")
+            : message.StartsWith("stillPresent", StringComparison.Ordinal) ? T("whyStillPresent")
+            : message.StartsWith("backupFailed", StringComparison.Ordinal) ? T("whyBackupFailed")
+            : message.StartsWith("pendingRestart", StringComparison.Ordinal) ? T("whyPendingRestart")
+            : message is "dependentDeviceFailed" ? T("whyDependentDevice")
+            : message is "unsafePath" or "otherVolume" or "invalidTarget" ? T("whyUnsafe")
+            : T("whyFailed") + (message.Length > 0 ? " · " + (message.Length > 140 ? message[..140] + "…" : message) : "");
+    }
+    private void PaintCleanupResults(CleanupOutcome outcome)
+    {
+        var open = outcome.Results.Where(r => r.Status != "done" || r.Message.StartsWith("pendingRestart", StringComparison.Ordinal)).ToArray();
+        CleanupResultText.Text = string.Join("\n", open.Select(r => KindName(r.Kind) + " · " + r.Label + " — " + Why(r)));
+        CleanupResultPanel.Visibility = open.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+    // A report the person can keep: what was removed, what was not and why, what was kept on purpose. In their language.
+    private async Task WriteCleanupReportAsync(DeepCleanPlan plan, CleanupOutcome outcome)
+    {
+        try
+        {
+            var text = new System.Text.StringBuilder();
+            text.AppendLine("# " + T("cleanupReportTitle")).AppendLine().AppendLine($"Swap {ApplicationVersion} · {DateTime.Now:yyyy-MM-dd HH:mm} · {string.Join(", ", plan.Vendors.Select(VendorLabel))}").AppendLine();
+            text.AppendLine("## " + string.Format(T("cleanupReportRemoved"), outcome.Done, Size(outcome.Freed) is { Length: > 0 } s ? s : "0 KB"));
+            foreach (var group in outcome.Results.Where(r => r.Status == "done").GroupBy(r => r.Kind))
+                text.AppendLine($"- **{KindName(group.Key)}** ({group.Count()}): " + string.Join(", ", group.Take(12).Select(r => r.Label)) + (group.Count() > 12 ? ", …" : ""));
+            var open = outcome.Results.Where(r => r.Status != "done").ToArray();
+            text.AppendLine().AppendLine("## " + string.Format(T("cleanupReportNotRemoved"), open.Length));
+            foreach (var r in open) text.AppendLine($"- {KindName(r.Kind)} · {r.Label} — {Why(r)}");
+            text.AppendLine().AppendLine("## " + T("cleanupKept"));
+            foreach (var k in plan.Kept) text.AppendLine($"- {KindName(k.Kind)} · {k.Label} — {T(k.Reason)}");
+            text.AppendLine().AppendLine(T("cleanupReportUndo"));
+            var path = ReportPath("-cleanup.md");
+            await File.WriteAllTextAsync(path, text.ToString());
+            await File.WriteAllTextAsync(Path.Combine(outcome.Session, "cleanup-report.md"), text.ToString());
+            Log(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log(e.Message); }
     }
 
     // After a verified driver change, remove leftovers of disconnected brands that need no manual review.
@@ -178,6 +242,7 @@ public partial class MainWindow
             Log(T("cleanupTitle") + " · " + string.Join(", ", plan.Vendors.Select(VendorLabel)));
             var outcome = await new DeepCleanEngine(Cleanup).RunAsync(plan, keys, NewCleanupSession(), CleanupBackupRoot(), Log, token, CleanupStage, CleanupProgress, true);
             lastCleanup = outcome;
+            PaintCleanupResults(outcome); await WriteCleanupReportAsync(plan, outcome);
             Log(string.Format(T("cleanupDone"), outcome.Done, outcome.Failed, Size(outcome.Freed) is { Length: > 0 } size ? size : "0 KB"));
         }
         // The driver change already succeeded; a leftover that needs review must not turn it into a failure.

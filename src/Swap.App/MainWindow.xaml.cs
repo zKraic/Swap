@@ -119,7 +119,7 @@ public partial class MainWindow : Window
             .OrderBy(a => a is { Problem: 0, Signed: true } && Planner.IsOem(a.Inf)).ToArray();
         populating = true; GpuBox.ItemsSource = adapters; GpuBox.SelectedItem = TargetChoice.Select(adapters, selectedId); populating = false;
         GpuBox.Visibility = adapters.Length > 1 ? Visibility.Visible : Visibility.Collapsed;
-        PaintSnapshot(); await InspectGraphicsAsync(); await ProbeApisAsync(); RefreshFiles(); Status.Text = T(TargetAdapter is not null ? "ready" : adapters.Length > 1 ? "selectGpu" : "noGpu"); UpdateButtons();
+        PaintSnapshot(); await InspectGraphicsAsync(); await ProbeApisAsync(); await InspectSoftwareAsync(); RefreshFiles(); Status.Text = T(TargetAdapter is not null ? "ready" : adapters.Length > 1 ? "selectGpu" : "noGpu"); UpdateButtons();
     }
     private void PaintSnapshot()
     {
@@ -281,9 +281,14 @@ public partial class MainWindow : Window
     {
         if (!IsLoaded || populating || busy) { if (busy) DeepCleanBox.IsChecked = preferences.DeepClean; return; }
         preferences = new((LanguageBox.SelectedItem as Choice)?.Value ?? "auto", (ThemeBox.SelectedItem as Choice)?.Value ?? "auto", SourceBox.SelectedIndex, DeepCleanBox.IsChecked == true);
-        dark = preferences.Apply(); PopulatePreferences(); PaintSnapshot(); RelabelCleanup(); RelabelSwap(); SetFrame(); RefreshFiles(); Status.Text = T("ready");
-        PageTitle.Text = T(HomePage.Visibility == Visibility.Visible ? "home" : CleanupPage.Visibility == Visibility.Visible ? "cleanup" : LibraryPage.Visibility == Visibility.Visible ? "library" : RecoveryPage.Visibility == Visibility.Visible ? "recovery" : DiagnosticsPage.Visibility == Visibility.Visible ? "diagnostics" : "settings");
+        dark = preferences.Apply(); Relocalize(); Status.Text = T("ready");
         try { if (!Demo) preferences.Save(); } catch (Exception ex) { Status.Text = T("failed"); Log(ex.Message); }
+    }
+    // Everything built in code (not bound to a resource) is written again in the new language and theme.
+    private void Relocalize()
+    {
+        PopulatePreferences(); PaintSnapshot(); RelabelCleanup(); RelabelSwap(); SetFrame(); RefreshFiles();
+        PageTitle.Text = T(HomePage.Visibility == Visibility.Visible ? "home" : CleanupPage.Visibility == Visibility.Visible ? "cleanup" : LibraryPage.Visibility == Visibility.Visible ? "library" : RecoveryPage.Visibility == Visibility.Visible ? "recovery" : DiagnosticsPage.Visibility == Visibility.Visible ? "diagnostics" : "settings");
     }
     private void RefreshFiles()
     {

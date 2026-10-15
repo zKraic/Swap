@@ -65,6 +65,7 @@ public partial class MainWindow
             (games.Count==0 ? "" : " · "+T(games.Any(f=>f.Attention)?"gamesAttention":"gamesReady"));
         PaintGames();
         PaintRefresh();
+        PaintSoftware();
         DisplayText.Text=graphicsDiagnostics.Displays.Count==0?T("displayUnknown"):string.Join("\n",graphicsDiagnostics.Displays.Select(d=>$"{d.Name} · {d.Width}×{d.Height} · {(d.Hz>1?d.Hz+" Hz":T("unknown"))}"+(d.MaximumHz>d.Hz+1 && d.Hz>1?$" · {T("maximumHz")} {d.MaximumHz} Hz":"")));
         EventText.Text=!graphicsDiagnostics.EventsComplete?T("eventsUnknown"):graphicsDiagnostics.Incidents.Count==0?T("noDisplayErrors"):string.Join("\n",graphicsDiagnostics.Incidents.Take(8).Select(e=>$"{e.Time.LocalDateTime:g} · {e.Kind} · {e.Provider} ({e.Id})"));
         if(checkpoint is null)ComparisonText.Text=T("checkpointNone");

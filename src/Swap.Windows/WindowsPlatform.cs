@@ -104,6 +104,8 @@ public sealed partial class WindowsPlatform : IPlatform
         return GraphicsHealth.Evaluate(adapter, diagnostics).Any(f => f.Code == "direct3dOk");
     }
     private sealed record Signature(bool Valid, string Subject, string Status);
+    // Authenticode of a downloaded installer: valid chain and the signer's subject, as Windows reports them.
+    public static async Task<(bool Valid, string Subject)> PublisherAsync(string path) { var s = await SignatureAsync(path); return (s.Valid, s.Subject ?? ""); }
     private static async Task<Signature> SignatureAsync(string path) =>
         JsonSerializer.Deserialize<Signature>(await PowerShellAsync(Script("Signature").Replace("__PATH__", Convert.ToBase64String(Encoding.UTF8.GetBytes(path)))))!;
     [GeneratedRegex(@"^\s*(?<key>[A-Za-z0-9_.]+)\s*=\s*(?<value>[^;\r\n]+)", RegexOptions.Multiline)]

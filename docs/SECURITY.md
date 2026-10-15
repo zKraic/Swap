@@ -26,6 +26,10 @@ Swap solicita UAC al abrir normalmente; no almacena credenciales ni automatiza l
 
 El descargador HTTPS auxiliar reconoce dominios AMD/NVIDIA/Intel, puerto 443, sin credenciales ni redirecciones externas; no es el mecanismo principal de resolución automática. Archivos no firmados no pasan la importación.
 
+Panel del fabricante (NVIDIA App, AMD Software), solo tras confirmar: el enlace se lee de la página oficial con una expresión fija por fabricante; la descarga solo se acepta por HTTPS, puerto 443, desde `us.download.nvidia.com`, `international.download.nvidia.com` o `drivers.amd.com`, también después de redirecciones, con tamaño máximo de 2 GB y tamaño completo; un archivo parcial se borra. Se ejecuta solo si Windows informa una firma Authenticode válida cuyo nombre común es exactamente el del fabricante. Swap no cierra ni fuerza el instalador, y lo borra al terminar. Intel no se descarga: se abre su página.
+
+Cierre ordenado: antes de una limpieza manual se nombran los programas abiertos de la marca anterior que se cerrarán. Un programa con ventana recibe la petición de cierre normal y tiene 10 segundos; solo se finaliza si sigue abierto.
+
 ## Límites
 
 El EXE de Swap no tiene firma comercial. Un hash acredita integridad respecto al archivo publicado, no identidad del editor. No desactives SmartScreen u otras medidas para ejecutar una copia de origen dudoso. Malware con permisos de administrador supera este modelo.
