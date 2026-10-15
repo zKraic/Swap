@@ -46,7 +46,7 @@ The same page can remove **older unused versions of the current driver** (often 
 
 ## Download and open
 
-1. Download **[Swap.exe 1.0.0](https://github.com/zKraic/Swap/releases/download/v1.0.0/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v1.0.0/Swap.exe.sha256). [Release notes](https://github.com/zKraic/Swap/releases/tag/v1.0.0).
+1. Download **[Swap.exe 1.0.0](https://github.com/zKraic/Swap/releases/download/v1.0.0/Swap.exe)** and optionally its [SHA-256](https://github.com/zKraic/Swap/releases/download/v1.0.0/Swap.exe.sha256) (`035C7A91…B9980A`). [Release notes](https://github.com/zKraic/Swap/releases/tag/v1.0.0).
 2. Open it and accept Windows administrator permissions. No Swap installer, ZIP or separate .NET installation.
 3. Review the detected card and choose an operation. Diagnostics need no reboot. Windows may require one after a driver change; Swap saves the session and preserves pending packages.
 

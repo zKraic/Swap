@@ -17,7 +17,7 @@ Swap 1.0.0 is the first release validated on a real card change. The exact GitHu
 | Isolated guest: environment and executable identity checks | 12 passed |
 | Authenticode | Not signed; free provider review pending |
 
-[Exact CI build](https://github.com/zKraic/Swap/actions/runs/38639242945) · [Machine-readable evidence](v100-result.json) · [Comparison with Display Driver Uninstaller](../COMPARISON-DDU.md) · [Physical validation tracker](https://github.com/zKraic/Swap/issues/3).
+[Published release](https://github.com/zKraic/Swap/releases/tag/v1.0.0) (published from the maintainer account; asset re-downloaded anonymously, identical SHA-256) · [Exact CI build](https://github.com/zKraic/Swap/actions/runs/38639242945) · [Machine-readable evidence](v100-result.json) · [Comparison with Display Driver Uninstaller](../COMPARISON-DDU.md) · [Physical validation tracker](https://github.com/zKraic/Swap/issues/3).
 
 ## The real card change
 
